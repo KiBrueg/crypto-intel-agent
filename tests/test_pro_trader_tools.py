@@ -72,6 +72,8 @@ def test_render_pro_report_contains_chart_and_decision_sections():
     md, html = render_pro_trader_report([analysis], {'TESTUSDT': order_book})
     assert 'Professional Trader Context' in md
     assert 'Confirmation checklist' in md
+    assert 'Hypothetical risk/reward' in md
+    assert 'R/R' in md
     assert 'Invalidation' in md
     assert '<svg' in html
     assert 'not financial advice' in md.lower()

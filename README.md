@@ -23,6 +23,7 @@ Collects public market data → detects unusual price/volume/liquidity movements
 | Trader Assistant | Strategy-specific decision-support report: scalping, breakout, mean reversion, pair-trading primitives |
 | Pro Trader Report | Binance candles + order book context: EMA/VWAP/RSI/ATR, support/resistance, Fibonacci, pivots, SVG chart, book imbalance |
 | Fear/Greed Confirmation | Pulls Fear & Greed Index and checks whether BTC/ETH structure, breadth and book context confirm or contradict it |
+| Risk/Reward Math | Calculates hypothetical level-based R/R for breakout, pullback, breakdown and rejection setups with invalidation notes |
 
 ---
 

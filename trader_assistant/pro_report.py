@@ -1,5 +1,6 @@
 from __future__ import annotations
 import html
+from .risk_reward import build_level_setups
 
 
 def _chart_svg(analysis, width=760, height=280):
@@ -49,6 +50,7 @@ def _analysis_md(a, ob=None):
     ind = a['indicators']
     levels = a['levels']
     ob = ob or {}
+    rr_setups = build_level_setups(a)
     lines = [
         f"## {a['symbol']} — Professional Trader Context",
         f"- Price: `{a['price']}`",
@@ -66,6 +68,15 @@ def _analysis_md(a, ob=None):
         ]
     lines += ['', '### Setup notes']
     lines += [f'- {x}' for x in a['setup_notes']]
+    lines += ['', '### Hypothetical risk/reward from nearby levels']
+    if rr_setups:
+        for name, rr in rr_setups.items():
+            ratio = 'n/a' if rr.get('risk_reward_ratio') is None else str(rr['risk_reward_ratio'])
+            valid = 'valid math' if rr.get('valid') else 'invalid/weak math'
+            warn = '; '.join(rr.get('warnings') or []) or 'no arithmetic warning'
+            lines.append(f"- **{name}** ({valid}): entry `{rr['entry']}`, stop `{rr['stop']}`, target `{rr['target']}`, R/R `{ratio}`. Invalidation: {rr['invalidation']}. Notes: {warn}")
+    else:
+        lines.append('- Not enough nearby levels to calculate level-based R/R.')
     lines += ['', '### Confirmation checklist', '- price accepts above/below the relevant level', '- volume does not fade immediately', '- order book does not flip against the idea', '- BTC/ETH context does not invalidate the setup']
     lines += ['', '### Invalidation', '- reclaim/failure of the level being watched', '- RSI/EMA/VWAP context flips', '- spread/liquidity deteriorates', '- correlation or BTC/ETH context breaks']
     lines += ['', '### Risk notes']
