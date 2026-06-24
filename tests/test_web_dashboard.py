@@ -3,7 +3,10 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
-from web_dashboard import render_dashboard_html, build_snapshot_payload, build_risk_reward_payload
+from web_dashboard import (
+    render_dashboard_html, build_snapshot_payload, build_risk_reward_payload,
+    classify_rr_quality, build_multi_timeframe_payload, DEFAULT_WATCHLIST,
+)
 
 
 def fake_snapshot():
@@ -21,6 +24,14 @@ def fake_snapshot():
     }
 
 
+def fake_klines(symbol, interval, limit):
+    base = {'15m': 100, '1h': 120, '4h': 140}.get(interval, 100)
+    return [
+        {'ts': i, 'open': base+i, 'high': base+2+i, 'low': base-1+i, 'close': base+1+i, 'volume': 1000+i}
+        for i in range(40)
+    ]
+
+
 def test_dashboard_html_contains_core_controls_and_sections():
     html = render_dashboard_html()
     assert '<!doctype html>' in html.lower()
@@ -28,17 +39,33 @@ def test_dashboard_html_contains_core_controls_and_sections():
     assert 'symbol' in html.lower()
     assert 'entry' in html.lower()
     assert 'risk/reward' in html.lower()
+    assert 'Watchlist' in html
+    assert 'Auto refresh' in html
+    assert 'Export JSON' in html
+    assert 'Multi-Timeframe' in html
     assert '/api/snapshot' in html
     assert '/api/risk-reward' in html
+    assert '/api/multi-timeframe' in html
+
+
+def test_default_watchlist_has_major_pairs():
+    assert 'BTCUSDT' in DEFAULT_WATCHLIST
+    assert 'ETHUSDT' in DEFAULT_WATCHLIST
+    assert 'SOLUSDT' in DEFAULT_WATCHLIST
+
+
+def test_rr_quality_classification():
+    assert classify_rr_quality(None)['label'] == 'n/a'
+    assert classify_rr_quality(0.8)['label'] == 'weak'
+    assert classify_rr_quality(1.7)['label'] == 'acceptable'
+    assert classify_rr_quality(2.5)['label'] == 'strong'
+    assert classify_rr_quality(4.0)['label'] == 'excellent'
 
 
 def test_snapshot_payload_shape_from_injected_fetchers():
     payload = build_snapshot_payload(
         symbol='BTCUSDT', interval='1h', limit=120, entry=60000, side='long',
-        klines_fetcher=lambda symbol, interval, limit: [
-            {'ts': i, 'open': 100+i, 'high': 102+i, 'low': 99+i, 'close': 101+i, 'volume': 1000+i}
-            for i in range(40)
-        ],
+        klines_fetcher=fake_klines,
         depth_fetcher=lambda symbol, limit: ([[140, 2], [139, 1]], [[141, 1], [142, 1]]),
         fear_greed_fetcher=lambda: {'value': 50, 'classification': 'Neutral'},
     )
@@ -47,6 +74,13 @@ def test_snapshot_payload_shape_from_injected_fetchers():
     assert 'order_book' in payload
     assert 'risk_reward' in payload
     assert 'fear_greed' in payload
+    assert 'rr_quality' in payload['risk_reward']
+
+
+def test_multi_timeframe_payload_returns_each_requested_interval():
+    payload = build_multi_timeframe_payload('BTCUSDT', intervals=('15m', '1h', '4h'), klines_fetcher=fake_klines)
+    assert [x['interval'] for x in payload['frames']] == ['15m', '1h', '4h']
+    assert all('trend' in x and 'price_vs_vwap_pct' in x for x in payload['frames'])
 
 
 def test_risk_reward_payload_uses_entry_side_stop_target():
@@ -55,10 +89,14 @@ def test_risk_reward_payload_uses_entry_side_stop_target():
     assert payload['entry'] == 60000
     assert payload['risk_reward_ratio'] == 3.0
     assert payload['source'] == 'manual_stop_target'
+    assert payload['rr_quality']['label'] == 'excellent'
 
 
 if __name__ == '__main__':
     test_dashboard_html_contains_core_controls_and_sections()
+    test_default_watchlist_has_major_pairs()
+    test_rr_quality_classification()
     test_snapshot_payload_shape_from_injected_fetchers()
+    test_multi_timeframe_payload_returns_each_requested_interval()
     test_risk_reward_payload_uses_entry_side_stop_target()
     print('OK web dashboard tests passed')

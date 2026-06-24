@@ -24,7 +24,7 @@ Collects public market data → detects unusual price/volume/liquidity movements
 | Pro Trader Report | Binance candles + order book context: EMA/VWAP/RSI/ATR, support/resistance, Fibonacci, pivots, SVG chart, book imbalance |
 | Fear/Greed Confirmation | Pulls Fear & Greed Index and checks whether BTC/ETH structure, breadth and book context confirm or contradict it |
 | Risk/Reward Math | Calculates hypothetical level-based R/R for breakout, pullback, breakdown and rejection setups with invalidation notes |
-| Browser Dashboard | Local web UI at `http://127.0.0.1:8765` with controls, chart, technical context, order book, Fear/Greed and entry-based R/R |
+| Browser Dashboard | Local web UI at `http://127.0.0.1:8765` with watchlist buttons, auto-refresh, export JSON, multi-timeframe cards, chart, technical context, order book, Fear/Greed and entry-based R/R quality |
 
 ---
 
