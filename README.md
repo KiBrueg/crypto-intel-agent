@@ -22,6 +22,7 @@ Collects public market data → detects unusual price/volume/liquidity movements
 | Offline LLM stub | Generates a safe summary prompt from any report — no API key required |
 | Trader Assistant | Strategy-specific decision-support report: scalping, breakout, mean reversion, pair-trading primitives |
 | Pro Trader Report | Binance candles + order book context: EMA/VWAP/RSI/ATR, support/resistance, Fibonacci, pivots, SVG chart, book imbalance |
+| Fear/Greed Confirmation | Pulls Fear & Greed Index and checks whether BTC/ETH structure, breadth and book context confirm or contradict it |
 
 ---
 
@@ -33,6 +34,7 @@ python crypto_intel_agent_v2.py --per-page 40
 python dexscreener_monitor.py --query SOL --limit 20
 python trader_assistant_report.py --per-page 60
 python pro_trader_report.py --symbols BTCUSDT,ETHUSDT,SOLUSDT --interval 1h --limit 120
+python fear_greed_confirmation_report.py
 python llm_summary_stub.py reports/crypto_intel_report.md
 ```
 
