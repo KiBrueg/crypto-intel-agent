@@ -1,43 +1,155 @@
 # Crypto Intel Agent
 
-Safe AI/crypto market-intelligence automation demo for monitoring public crypto/DEX market data, detecting volatility/liquidity/volume alerts, storing SQLite snapshots, and generating Telegram-ready reports.
+Automated market monitoring tool for CoinGecko and DexScreener data.
 
-> Monitoring and research only. No automatic trading, no client-fund management, no promised returns, no financial advice.
+Collects public market data → detects unusual price/volume/liquidity movements → generates HTML and Markdown reports.
 
-## Features
+**Not a trading bot. No financial advice. No fund management.**
 
-- CoinGecko market monitor: top crypto assets, 24h moves, volume/market-cap, intraday range.
-- DexScreener monitor: DEX pair discovery, liquidity/volume candidates, high volume/liquidity ratio.
-- SQLite snapshots.
-- Markdown and HTML reports.
-- Optional Telegram delivery path.
-- Offline LLM summary stub for safe summaries.
-- Tests and GitHub Actions CI.
-- Dockerfile and n8n workflow blueprint.
+---
 
-## Quick start on Windows
+## What it does
 
-```powershell
-cd "C:\Users\brueg\Desktop\projects\crypto-intel-agent"
-python .\crypto_intel_agent_v2.py --per-page 40
-python .\dexscreener_monitor.py --query SOL --limit 20
-python .\llm_summary_stub.py .\reports\crypto_intel_report.md
+| Feature | Description |
+|---|---|
+| CoinGecko monitor | Top coins by market cap: price, 24h change, volume, intraday range |
+| Price alerts | Flags coins with strong 24h moves (configurable threshold) |
+| Volume alerts | Detects high `volume/market_cap` ratio as an attention signal |
+| DexScreener monitor | DEX pairs by query (SOL, AI, PEPE, etc.): liquidity, volume, price change |
+| DEX candidate detection | Finds pairs with high volume-to-liquidity ratio |
+| Report generation | Outputs Markdown + HTML reports ready for Telegram, Notion, or browser |
+| SQLite snapshots | Stores each run locally for historical comparison |
+| Offline LLM stub | Generates a safe summary prompt from any report — no API key required |
+
+---
+
+## Quick start
+
+```bash
+# No external packages required — stdlib only
+python crypto_intel_agent_v2.py --per-page 40
+python dexscreener_monitor.py --query SOL --limit 20
+python llm_summary_stub.py reports/crypto_intel_report.md
 ```
 
-## Tests
+Reports are saved to `reports/`:
+- `crypto_intel_report.md` / `crypto_intel_report.html`
+- `dexscreener_report.md` / `dexscreener_report.html`
 
-```powershell
-python .\tests\test_crypto_intel_agent_v2.py
-python .\tests\test_dexscreener_monitor.py
+---
+
+## Example output
+
+```
+=== PRICE ALERTS (24h) ===
+SOL    +8.4%   $142.30
+HYPE   -9.1%   $18.72
+ZEC    -7.3%   $31.45
+
+=== HIGH VOLUME / MARKET CAP ===
+DOGE   vol/mcap: 0.38
+XRP    vol/mcap: 0.21
+
+=== DEX CANDIDATES (SOL pairs) ===
+BONK/SOL   liq: $2.1M   vol24h: $8.4M   Δ: +12.3%
+WIF/SOL    liq: $1.8M   vol24h: $6.2M   Δ: +7.1%
 ```
 
-## GitHub push
+---
 
-```powershell
-git init
-git add .
-git commit -m "Initial Crypto Intel Agent MVP"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/crypto-intel-agent.git
-git push -u origin main
+## Run tests
+
+```bash
+python tests/test_crypto_intel_agent_v2.py
+python tests/test_dexscreener_monitor.py
 ```
+
+Tests run offline — no network required.
+
+---
+
+## Configuration
+
+Copy `.env.example` to `.env` and fill in optionally:
+
+```env
+COINGECKO_API_KEY=   # Pro key for higher rate limits (free tier works)
+OPENROUTER_API_KEY=  # Only needed for live LLM summaries
+DB_PATH=crypto_intel.db
+```
+
+See `config.example.json` for alert thresholds and query defaults.
+
+---
+
+## n8n / Make automation
+
+The scripts are designed to drop into an automation workflow:
+
+```
+Cron trigger
+→ run Python script
+→ read report file
+→ send Telegram message
+→ save to Notion / Google Sheets
+→ error notification
+```
+
+See `n8n_workflow_blueprint.md` for a ready-to-adapt workflow design.
+
+---
+
+## Use cases
+
+- **Freelance portfolio** — demonstrates API integration, alert logic, report generation, and automation-ready design
+- **Crypto/Web3 teams** — daily token monitoring digest without manual dashboard checks
+- **DeFi research** — token discovery via DexScreener liquidity/volume screening
+- **Telegram alert bot base** — add `/report`, `/alerts`, `/watch BTC` commands on top
+
+---
+
+## Stack
+
+- Python 3.x — stdlib only, no dependencies to install
+- CoinGecko public API
+- DexScreener public API
+- SQLite for local snapshots
+- Docker-ready (`Dockerfile` included)
+
+---
+
+## What this is not
+
+This tool is a **monitoring and reporting system**, not a trading system.
+
+- Does not execute trades
+- Does not manage funds
+- Does not give buy/sell recommendations
+- Not financial advice
+
+Data is sourced from public APIs and presented for informational purposes only.
+
+---
+
+## Project structure
+
+```
+crypto-intel-agent/
+├── crypto_intel_agent_v2.py   # CoinGecko monitor + alerts + reports
+├── dexscreener_monitor.py     # DexScreener DEX pair monitor
+├── llm_summary_stub.py        # Offline LLM summary prompt builder
+├── tests/
+│   ├── test_crypto_intel_agent_v2.py
+│   └── test_dexscreener_monitor.py
+├── reports/                   # Generated HTML + Markdown reports
+├── n8n_workflow_blueprint.md  # Automation workflow design
+├── Dockerfile
+├── config.example.json
+└── .env.example
+```
+
+---
+
+## License
+
+MIT
