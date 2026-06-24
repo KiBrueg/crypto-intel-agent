@@ -1,0 +1,24 @@
+VERIFY_TEST_EXIT=0
+OK tests passed
+
+GIT=git version 2.47.3
+GH=gh not installed/visible
+COMMIT_EXIT=0
+[master (root-commit) 593249f] Initial Crypto Intel Agent MVP
+ 14 files changed, 438 insertions(+)
+ create mode 100644 .env.example
+ create mode 100644 .gitignore
+ create mode 100644 Dockerfile
+ create mode 100644 GITHUB_PUSH_COMMANDS.md
+ create mode 100644 LICENSE
+ create mode 100644 README.md
+ create mode 100644 RUN_LOG.txt
+ create mode 100644 architecture.html
+ create mode 100644 config.example.json
+ create mode 100644 crypto_intel_agent_v2.py
+ create mode 100644 reports/crypto_intel_report.html
+ create mode 100644 reports/crypto_intel_report.md
+ create mode 100644 requirements.txt
+ create mode 100644 tests/test_crypto_intel_agent_v2.py
+
+STATUS

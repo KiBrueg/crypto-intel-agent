@@ -1,0 +1,8 @@
+{
+  "vs": "usd",
+  "per_page": 80,
+  "change_threshold": 7.0,
+  "range_threshold": 10.0,
+  "vol_mcap_threshold": 0.18,
+  "mode": "research_only_not_financial_advice"
+}
