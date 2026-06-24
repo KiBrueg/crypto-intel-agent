@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+"""Local browser dashboard for Crypto Trader Assistant.
+
+Run:
+    python web_dashboard.py
+Then open:
+    http://127.0.0.1:8765
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import traceback
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
+
+from trader_assistant.binance_public import fetch_klines, fetch_depth
+from trader_assistant.technical_analysis import analyze_candles
+from trader_assistant.order_book import analyze_order_book
+from trader_assistant.risk_reward import suggest_risk_reward_from_entry
+from trader_assistant.fear_greed import fetch_fear_greed_index, evaluate_fear_greed
+
+
+def _to_float(value, default=None):
+    try:
+        if value in (None, ''):
+            return default
+        return float(value)
+    except Exception:
+        return default
+
+
+def _context_from_analysis(analysis, order_book):
+    price = float(analysis.get('price') or 0)
+    vwap = float(analysis.get('indicators', {}).get('vwap') or price or 1)
+    return {
+        'trend': analysis.get('trend', 'mixed'),
+        'price_vs_vwap_pct': round((price - vwap) / vwap * 100, 4) if vwap else 0.0,
+        'rsi_14': analysis.get('indicators', {}).get('rsi_14', 50),
+        'order_book_imbalance': order_book.get('imbalance', 0),
+        'spread_bps': order_book.get('spread_bps') or 0,
+    }
+
+
+def build_risk_reward_payload(analysis, entry=None, side='long', stop=None, target=None):
+    if entry is None:
+        entry = analysis.get('price')
+    return suggest_risk_reward_from_entry(analysis, entry=entry, side=side, stop=stop, target=target)
+
+
+def build_snapshot_payload(
+    symbol='BTCUSDT', interval='1h', limit=120, entry=None, side='long', stop=None, target=None,
+    klines_fetcher=fetch_klines, depth_fetcher=fetch_depth, fear_greed_fetcher=fetch_fear_greed_index,
+):
+    symbol = symbol.upper()
+    candles = klines_fetcher(symbol, interval, int(limit))
+    analysis = analyze_candles(symbol, candles)
+    bids, asks = depth_fetcher(symbol, 50)
+    order_book = analyze_order_book(bids, asks, mid_price=analysis['price'])
+    rr = build_risk_reward_payload(analysis, entry=entry, side=side, stop=stop, target=target)
+    fg_raw = fear_greed_fetcher()
+    fg_value = int(fg_raw.get('value', 50))
+    context = _context_from_analysis(analysis, order_book)
+    fg = evaluate_fear_greed(fg_value, btc_context=context, eth_context=context, breadth={'share_above_vwap': 0.5, 'median_24h_change': 0.0, 'risk_assets_outperform_btc': False})
+    return {
+        'symbol': symbol,
+        'interval': interval,
+        'analysis': {k: v for k, v in analysis.items() if k != 'candles'},
+        'candles': analysis.get('candles', [])[-120:],
+        'order_book': order_book,
+        'risk_reward': rr,
+        'fear_greed': fg,
+    }
+
+
+def render_dashboard_html():
+    return r'''<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Crypto Trader Assistant</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#070713;--panel:#101114;--panel2:#161625;--text:#f7f7fb;--muted:#9497a9;--line:#2a2b3c;--purple:#7132f5;--purple2:#9b7cff;--green:#149e61;--red:#ef4444;--amber:#f59e0b;}
+    *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 20% -10%,rgba(113,50,245,.32),transparent 34%),linear-gradient(135deg,#050510,#101114);font-family:Inter,system-ui,sans-serif;color:var(--text)}
+    .wrap{max-width:1320px;margin:0 auto;padding:26px}.hero{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:18px}.kicker{color:var(--purple2);font-weight:700;font-size:12px;letter-spacing:.12em;text-transform:uppercase}.title{font-size:42px;font-weight:800;letter-spacing:-1px;margin:8px 0}.sub{color:var(--muted);max-width:760px;line-height:1.5}.grid{display:grid;grid-template-columns:360px 1fr;gap:16px}.card{background:rgba(16,17,20,.92);border:1px solid rgba(148,151,169,.18);border-radius:18px;padding:18px;box-shadow:rgba(0,0,0,.22) 0 18px 60px}.controls label{display:block;color:var(--muted);font-size:12px;margin:12px 0 5px}.controls input,.controls select{width:100%;background:#0b0b16;color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px;font:inherit}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.btn{width:100%;margin-top:14px;border:0;background:var(--purple);color:#fff;border-radius:12px;padding:13px 16px;font-weight:700;cursor:pointer}.btn.secondary{background:rgba(113,50,245,.16);color:#c9b8ff;border:1px solid rgba(113,50,245,.45)}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}.metric{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:14px}.metric .l{color:var(--muted);font-size:12px}.metric .v{font-size:22px;font-weight:800;margin-top:4px}.chart{height:340px;width:100%;background:#080814;border:1px solid var(--line);border-radius:18px}.sections{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.section h3{margin:0 0 10px;font-size:16px}.list{margin:0;padding-left:18px;color:#dfe3ee;line-height:1.65}.pill{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;background:rgba(113,50,245,.18);color:#c9b8ff;font-size:12px;font-weight:700}.good{color:#5ee08c}.bad{color:#ff7b7b}.warn{color:#fbbf24}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.error{white-space:pre-wrap;color:#ffb4b4}.small{font-size:12px;color:var(--muted);line-height:1.45}@media(max-width:900px){.grid,.sections{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}.title{font-size:32px}}
+  </style>
+</head>
+<body><div class="wrap">
+  <div class="hero"><div><div class="kicker">local browser dashboard</div><h1 class="title">Crypto Trader Assistant</h1><div class="sub">Decision-support dashboard: trend, VWAP/EMA/RSI/ATR, levels, order book, Fear/Greed confirmation and entry-based risk/reward. Not financial advice.</div></div><span class="pill">127.0.0.1 local</span></div>
+  <div class="grid">
+    <div class="card controls">
+      <h2>Controls</h2>
+      <label>Symbol</label><input id="symbol" value="BTCUSDT">
+      <div class="row"><div><label>Interval</label><select id="interval"><option>15m</option><option selected>1h</option><option>4h</option><option>1d</option></select></div><div><label>Side</label><select id="side"><option>long</option><option>short</option></select></div></div>
+      <label>Entry</label><input id="entry" type="number" step="any" placeholder="optional, default=current price">
+      <div class="row"><div><label>Stop</label><input id="stop" type="number" step="any" placeholder="auto"></div><div><label>Target</label><input id="target" type="number" step="any" placeholder="auto"></div></div>
+      <button class="btn" onclick="loadSnapshot()">Refresh dashboard</button>
+      <button class="btn secondary" onclick="calcRR()">Calculate R/R only</button>
+      <p class="small">Manual stop/target wins. If empty, the dashboard infers stop/target from nearby support/resistance, pivots, Fibonacci and ATR buffer.</p>
+    </div>
+    <div>
+      <div class="metrics" id="metrics"></div>
+      <canvas class="chart" id="chart" width="900" height="340"></canvas>
+      <div class="sections">
+        <div class="card section"><h3>Technical Context</h3><ul class="list" id="tech"></ul></div>
+        <div class="card section"><h3>Risk/Reward</h3><ul class="list" id="rr"></ul></div>
+        <div class="card section"><h3>Fear/Greed Confirmation</h3><ul class="list" id="fg"></ul></div>
+        <div class="card section"><h3>Order Book / Levels</h3><ul class="list" id="book"></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id); let lastAnalysis=null;
+function q(){const p=new URLSearchParams(); ['symbol','interval','side','entry','stop','target'].forEach(id=>{if($(id).value)p.set(id,$(id).value)}); return p.toString();}
+function fmt(x){return x===null||x===undefined?'n/a':(typeof x==='number'?Number(x.toFixed(6)).toString():x)}
+function li(items){return items.map(x=>`<li>${x}</li>`).join('')}
+async function loadSnapshot(){setLoading(); try{const r=await fetch('/api/snapshot?'+q()); const data=await r.json(); if(data.error) throw new Error(data.error); render(data);}catch(e){showError(e)}}
+async function calcRR(){try{const p=new URLSearchParams(q()); const r=await fetch('/api/risk-reward?'+p.toString()); const rr=await r.json(); if(rr.error) throw new Error(rr.error); renderRR(rr);}catch(e){showError(e)}}
+function setLoading(){ $('metrics').innerHTML='<div class="metric"><div class="l">Status</div><div class="v">Loading…</div></div>'; }
+function showError(e){$('metrics').innerHTML=`<div class="metric"><div class="l">Error</div><div class="v bad">Failed</div></div>`; $('tech').innerHTML=`<li class="error">${e.stack||e}</li>`}
+function render(data){lastAnalysis=data.analysis; const a=data.analysis, ind=a.indicators, ob=data.order_book, rr=data.risk_reward, fg=data.fear_greed;
+ $('metrics').innerHTML=[['Symbol',data.symbol],['Price',fmt(a.price)],['Trend',a.trend],['R/R',fmt(rr.risk_reward_ratio)]].map(m=>`<div class="metric"><div class="l">${m[0]}</div><div class="v">${m[1]}</div></div>`).join('');
+ $('tech').innerHTML=li([`EMA9/EMA21: <span class="mono">${fmt(ind.ema_9)} / ${fmt(ind.ema_21)}</span>`,`VWAP: <span class="mono">${fmt(ind.vwap)}</span>`,`RSI14: <span class="mono">${fmt(ind.rsi_14)}</span>`,`ATR14: <span class="mono">${fmt(ind.atr_14)}</span>`,...(a.setup_notes||[])]);
+ renderRR(rr); $('fg').innerHTML=li([`Index: <b>${fg.index_value}</b> / ${fg.label}`,`Confirmation: <b>${fg.confirmation}</b>`,`Score: <span class="mono">${fmt(fg.score)}</span>`,fg.interpretation]);
+ const fib=a.levels.fibonacci||{}, piv=a.levels.pivots||{}; $('book').innerHTML=li([`Spread: <span class="mono">${fmt(ob.spread_bps)}</span> bps`,`Imbalance: <span class="mono">${fmt(ob.imbalance)}</span>`,`Signals: ${(ob.signals||['none']).join(', ')}`,`Nearest: ${(a.levels.nearest||[]).map(fmt).join(', ')}`,`Fib .382/.5/.618: ${fmt(fib['0.382'])}, ${fmt(fib['0.500'])}, ${fmt(fib['0.618'])}`,`Pivot/R1/S1: ${fmt(piv.pivot)}, ${fmt(piv.r1)}, ${fmt(piv.s1)}`]);
+ drawChart(data.candles, a.levels); }
+function renderRR(rr){$('rr').innerHTML=li([`Source: <b>${rr.source}</b>`,`Entry: <span class="mono">${fmt(rr.entry)}</span>`,`Stop: <span class="mono">${fmt(rr.stop)}</span>`,`Target: <span class="mono">${fmt(rr.target)}</span>`,`Risk: <span class="mono">${fmt(rr.risk_per_unit)}</span>`,`Reward: <span class="mono">${fmt(rr.reward_per_unit)}</span>`,`R/R: <b>${fmt(rr.risk_reward_ratio)}</b>`,`Valid: ${rr.valid}`,`Invalidation: ${rr.invalidation||'n/a'}`,...(rr.warnings||[]).map(w=>`Warning: <span class="warn">${w}</span>`)]);}
+function drawChart(candles, levels){const c=$('chart'), ctx=c.getContext('2d'), w=c.width,h=c.height; ctx.clearRect(0,0,w,h); ctx.fillStyle='#080814'; ctx.fillRect(0,0,w,h); if(!candles||!candles.length)return; const hi=Math.max(...candles.map(x=>x.high)), lo=Math.min(...candles.map(x=>x.low)), span=hi-lo||1, pad=28; const X=i=>pad+i*(w-pad*2)/Math.max(1,candles.length-1), Y=p=>pad+(hi-p)/span*(h-pad*2);
+ const all=[...(levels.support_resistance||[]),...Object.values(levels.fibonacci||{}),...Object.values(levels.pivots||{})]; ctx.font='10px Inter'; all.forEach((lv,i)=>{const y=Y(lv); if(y<pad||y>h-pad)return; ctx.strokeStyle=i%2?'#7132f5':'#334155'; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke(); ctx.setLineDash([]);});
+ candles.forEach((k,i)=>{const x=X(i), o=Y(k.open), cl=Y(k.close), hh=Y(k.high), ll=Y(k.low), up=k.close>=k.open; ctx.strokeStyle=up?'#149e61':'#ef4444'; ctx.fillStyle=ctx.strokeStyle; ctx.beginPath(); ctx.moveTo(x,hh); ctx.lineTo(x,ll); ctx.stroke(); ctx.fillRect(x-2,Math.min(o,cl),4,Math.max(1,Math.abs(cl-o)));});}
+loadSnapshot();
+</script></body></html>'''
+
+
+class DashboardHandler(BaseHTTPRequestHandler):
+    def _send(self, status, content, ctype='application/json'):
+        raw = content if isinstance(content, bytes) else content.encode('utf-8')
+        self.send_response(status)
+        self.send_header('Content-Type', ctype + '; charset=utf-8')
+        self.send_header('Content-Length', str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def do_GET(self):
+        parsed = urlparse(self.path)
+        qs = parse_qs(parsed.query)
+        try:
+            if parsed.path == '/':
+                return self._send(200, render_dashboard_html(), 'text/html')
+            if parsed.path == '/api/snapshot':
+                payload = _payload_from_qs(qs)
+                return self._send(200, json.dumps(payload, ensure_ascii=False))
+            if parsed.path == '/api/risk-reward':
+                symbol = (qs.get('symbol') or ['BTCUSDT'])[0].upper()
+                interval = (qs.get('interval') or ['1h'])[0]
+                candles = fetch_klines(symbol, interval, 120)
+                analysis = analyze_candles(symbol, candles)
+                rr = build_risk_reward_payload(analysis, entry=_to_float((qs.get('entry') or [None])[0], analysis['price']), side=(qs.get('side') or ['long'])[0], stop=_to_float((qs.get('stop') or [None])[0]), target=_to_float((qs.get('target') or [None])[0]))
+                return self._send(200, json.dumps(rr, ensure_ascii=False))
+            return self._send(404, json.dumps({'error': 'not found'}))
+        except Exception as e:
+            return self._send(500, json.dumps({'error': str(e), 'trace': traceback.format_exc()}))
+
+    def log_message(self, fmt, *args):
+        print('[dashboard]', fmt % args)
+
+
+def _payload_from_qs(qs):
+    symbol = (qs.get('symbol') or ['BTCUSDT'])[0]
+    interval = (qs.get('interval') or ['1h'])[0]
+    side = (qs.get('side') or ['long'])[0]
+    return build_snapshot_payload(symbol=symbol, interval=interval, limit=120, entry=_to_float((qs.get('entry') or [None])[0]), side=side, stop=_to_float((qs.get('stop') or [None])[0]), target=_to_float((qs.get('target') or [None])[0]))
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--host', default='127.0.0.1')
+    ap.add_argument('--port', type=int, default=8765)
+    args = ap.parse_args()
+    srv = ThreadingHTTPServer((args.host, args.port), DashboardHandler)
+    print(f'Crypto Trader Assistant dashboard: http://{args.host}:{args.port}')
+    srv.serve_forever()
+
+
+if __name__ == '__main__':
+    main()

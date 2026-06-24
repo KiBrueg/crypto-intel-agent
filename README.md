@@ -24,6 +24,7 @@ Collects public market data → detects unusual price/volume/liquidity movements
 | Pro Trader Report | Binance candles + order book context: EMA/VWAP/RSI/ATR, support/resistance, Fibonacci, pivots, SVG chart, book imbalance |
 | Fear/Greed Confirmation | Pulls Fear & Greed Index and checks whether BTC/ETH structure, breadth and book context confirm or contradict it |
 | Risk/Reward Math | Calculates hypothetical level-based R/R for breakout, pullback, breakdown and rejection setups with invalidation notes |
+| Browser Dashboard | Local web UI at `http://127.0.0.1:8765` with controls, chart, technical context, order book, Fear/Greed and entry-based R/R |
 
 ---
 
@@ -38,6 +39,7 @@ python pro_trader_report.py --symbols BTCUSDT,ETHUSDT,SOLUSDT --interval 1h --li
 python fear_greed_confirmation_report.py
 python risk_reward_calculator.py --symbol BTCUSDT --side long --entry 60000 --stop 59000 --target 63000
 python risk_reward_calculator.py --symbol BTCUSDT --side long --entry 60000  # auto stop/target from levels
+python web_dashboard.py
 python llm_summary_stub.py reports/crypto_intel_report.md
 ```
 
