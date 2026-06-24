@@ -16,4 +16,5 @@ with tempfile.TemporaryDirectory() as d:
     con = agent.init_db(Path(d) / 't.sqlite3')
     assert agent.save_snapshot(con, coins, 'TEST') == 3
     assert con.execute('select count(*) from snapshots').fetchone()[0] == 3
+    con.close()
 print('OK tests passed')

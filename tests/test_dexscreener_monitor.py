@@ -15,4 +15,5 @@ with tempfile.TemporaryDirectory() as d:
     con = dex.init_db(Path(d) / 'dex.sqlite3')
     assert dex.save_pairs(con, 'TEST', pairs, 'NOW') == 3
     assert con.execute('select count(*) from dex_pairs').fetchone()[0] == 3
+    con.close()
 print('OK DexScreener tests passed')

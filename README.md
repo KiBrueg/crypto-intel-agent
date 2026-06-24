@@ -20,6 +20,7 @@ Collects public market data → detects unusual price/volume/liquidity movements
 | Report generation | Outputs Markdown + HTML reports ready for Telegram, Notion, or browser |
 | SQLite snapshots | Stores each run locally for historical comparison |
 | Offline LLM stub | Generates a safe summary prompt from any report — no API key required |
+| Trader Assistant | Strategy-specific decision-support report: scalping, breakout, mean reversion, pair-trading primitives |
 
 ---
 
@@ -29,6 +30,7 @@ Collects public market data → detects unusual price/volume/liquidity movements
 # No external packages required — stdlib only
 python crypto_intel_agent_v2.py --per-page 40
 python dexscreener_monitor.py --query SOL --limit 20
+python trader_assistant_report.py --per-page 60
 python llm_summary_stub.py reports/crypto_intel_report.md
 ```
 
