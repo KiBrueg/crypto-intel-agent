@@ -41,6 +41,7 @@ Watch: perp funding, spot-perp basis, borrow/funding costs, liquidation/crowding
 - Invalidation levels.
 - Change detection since previous scan.
 - Post-signal journal to measure whether flagged setups worked.
+- Pro-trader context layer: EMA/VWAP/RSI/ATR, support/resistance, Fibonacci retracement, pivot levels, SVG chart snapshot and order-book imbalance.
 
 ## Safety boundaries
 
