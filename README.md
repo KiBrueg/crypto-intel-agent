@@ -36,6 +36,8 @@ python dexscreener_monitor.py --query SOL --limit 20
 python trader_assistant_report.py --per-page 60
 python pro_trader_report.py --symbols BTCUSDT,ETHUSDT,SOLUSDT --interval 1h --limit 120
 python fear_greed_confirmation_report.py
+python risk_reward_calculator.py --symbol BTCUSDT --side long --entry 60000 --stop 59000 --target 63000
+python risk_reward_calculator.py --symbol BTCUSDT --side long --entry 60000  # auto stop/target from levels
 python llm_summary_stub.py reports/crypto_intel_report.md
 ```
 

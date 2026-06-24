@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
-from trader_assistant.risk_reward import calculate_risk_reward, build_level_setups
+from trader_assistant.risk_reward import calculate_risk_reward, build_level_setups, suggest_risk_reward_from_entry
 
 
 def test_long_risk_reward_uses_entry_stop_target():
@@ -30,8 +30,8 @@ def test_invalid_setup_is_flagged_not_crashed():
     assert rr['warnings']
 
 
-def test_build_level_setups_creates_nearest_long_and_short_ideas():
-    analysis = {
+def sample_analysis():
+    return {
         'symbol': 'TESTUSDT',
         'price': 100.0,
         'levels': {
@@ -42,11 +42,30 @@ def test_build_level_setups_creates_nearest_long_and_short_ideas():
         },
         'indicators': {'atr_14': 2.0},
     }
-    setups = build_level_setups(analysis)
+
+
+def test_build_level_setups_creates_nearest_long_and_short_ideas():
+    setups = build_level_setups(sample_analysis())
     assert {'long_breakout', 'long_pullback', 'short_breakdown', 'short_rejection'} <= set(setups)
     assert setups['long_breakout']['risk_reward_ratio'] is not None
     assert setups['short_breakdown']['risk_reward_ratio'] is not None
     assert all('invalidation' in s for s in setups.values())
+
+
+def test_suggest_risk_reward_from_specific_entry_with_auto_levels():
+    rr = suggest_risk_reward_from_entry(sample_analysis(), entry=101.0, side='long')
+    assert rr['entry'] == 101.0
+    assert rr['stop'] < 101.0
+    assert rr['target'] > 101.0
+    assert rr['risk_reward_ratio'] is not None
+    assert rr['source'] == 'auto_levels'
+
+
+def test_suggest_risk_reward_from_specific_entry_accepts_manual_stop_target():
+    analysis = {'symbol': 'TESTUSDT', 'price': 100.0, 'levels': {}, 'indicators': {'atr_14': 2.0}}
+    rr = suggest_risk_reward_from_entry(analysis, entry=100.0, side='short', stop=104.0, target=88.0)
+    assert rr['risk_reward_ratio'] == 3.0
+    assert rr['source'] == 'manual_stop_target'
 
 
 if __name__ == '__main__':
@@ -54,4 +73,6 @@ if __name__ == '__main__':
     test_short_risk_reward_uses_entry_stop_target()
     test_invalid_setup_is_flagged_not_crashed()
     test_build_level_setups_creates_nearest_long_and_short_ideas()
+    test_suggest_risk_reward_from_specific_entry_with_auto_levels()
+    test_suggest_risk_reward_from_specific_entry_accepts_manual_stop_target()
     print('OK risk/reward tests passed')

@@ -87,6 +87,46 @@ def _annotate(rr, name, invalidation):
     return rr
 
 
+def suggest_risk_reward_from_entry(analysis, entry, side='long', stop=None, target=None):
+    """Calculate R/R for a trader-supplied entry.
+
+    If stop and target are supplied, use them directly. If not, infer a nearby
+    stop/target from detected levels and ATR buffer. This is not a signal; it is
+    only arithmetic around the user's proposed entry point.
+    """
+    entry = _num(entry)
+    side = str(side).lower()
+    if entry is None:
+        rr = calculate_risk_reward(None, stop, target, side)
+        rr['source'] = 'invalid_entry'
+        rr['invalidation'] = 'entry is missing'
+        return rr
+    if stop is not None and target is not None:
+        rr = calculate_risk_reward(entry, stop, target, side)
+        rr['source'] = 'manual_stop_target'
+        rr['invalidation'] = 'manual stop/target supplied by trader'
+        return rr
+
+    levels = _sorted_levels(analysis)
+    below = _below(levels, entry)
+    above = _above(levels, entry)
+    atr = _num((analysis.get('indicators') or {}).get('atr_14'), entry * 0.01) or entry * 0.01
+    pad = max(atr * 0.25, entry * 0.001)
+    if side == 'long':
+        inferred_stop = stop if stop is not None else ((below[0] - pad) if below else entry - atr)
+        inferred_target = target if target is not None else (above[0] if above else entry + atr * 2)
+        invalidation = 'fails if price loses inferred support/stop below entry'
+    else:
+        inferred_stop = stop if stop is not None else ((above[0] + pad) if above else entry + atr)
+        inferred_target = target if target is not None else (below[0] if below else entry - atr * 2)
+        invalidation = 'fails if price reclaims inferred resistance/stop above entry'
+    rr = calculate_risk_reward(entry, inferred_stop, inferred_target, side)
+    rr['source'] = 'auto_levels'
+    rr['invalidation'] = invalidation
+    rr['nearest_levels_used'] = {'below': below[:3], 'above': above[:3], 'atr_buffer': round(pad, 8)}
+    return rr
+
+
 def build_level_setups(analysis):
     """Build hypothetical R/R setups from nearest levels.
 
