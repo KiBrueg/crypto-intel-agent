@@ -24,7 +24,7 @@ from trader_assistant.fear_greed import fetch_fear_greed_index, evaluate_fear_gr
 from trader_assistant.patterns import detect_classic_patterns
 from trader_assistant.checklist import build_pro_trader_checklist
 from trader_assistant.coach import build_trader_coach, load_learning_stats
-from trader_assistant.journal import init_journal, save_setup, mark_outcome, learning_stats, recent_setups, DEFAULT_DB
+from trader_assistant.journal import init_journal, save_setup, mark_outcome, learning_stats, recent_setups, DEFAULT_DB, save_council_review, recent_council_reviews
 from trader_assistant.ai_desk import build_ai_desk_notes
 from trader_assistant.council import run_council
 
@@ -222,6 +222,7 @@ def render_dashboard_html():
       <button class="btn secondary" onclick="calcRR()">Calculate R/R only</button>
       <button class="btn secondary" onclick="exportJSON()">Export JSON</button>
       <button class="btn secondary" onclick="saveSetup()">Save Setup</button>
+      <button class="btn secondary" onclick="saveCouncil()">Ask Council + Save Verdict</button>
       <label><input id="autorefresh" type="checkbox" style="width:auto;margin-right:8px" onchange="toggleAuto()">Auto refresh 60s</label>
       <p class="small">Manual stop/target wins. If empty, the dashboard infers stop/target from nearby support/resistance, pivots, Fibonacci and ATR buffer.</p>
     </div>
@@ -255,6 +256,7 @@ async function loadSnapshot(){{setLoading(); try{{const [sr, mr]=await Promise.a
 async function calcRR(){{try{{const p=new URLSearchParams(q()); const r=await fetch('/api/risk-reward?'+p.toString()); const rr=await r.json(); if(rr.error) throw new Error(rr.error); renderRR(rr);}}catch(e){{showError(e)}}}}
 function exportJSON(){{if(!lastSnapshot)return; const blob=new Blob([JSON.stringify(lastSnapshot,null,2)],{{type:'application/json'}}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`crypto-trader-snapshot-${{lastSnapshot.symbol}}.json`; a.click(); URL.revokeObjectURL(a.href);}}
 async function saveSetup(){{if(!lastSnapshot)return; const r=await fetch('/api/journal/save',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{snapshot:lastSnapshot,notes:'saved from dashboard'}})}}); const data=await r.json(); if(data.ok){{lastSetupId=data.setup_id; await loadJournalStats();}}}}
+async function saveCouncil(){{if(!lastSnapshot)return; const r=await fetch('/api/council/save',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{snapshot:lastSnapshot,council:lastSnapshot.council,notes:'ask council from dashboard'}})}}); const data=await r.json(); if(data.ok){{alert(`Council verdict saved #${{data.review_id}}`);}}}}
 async function markLastOutcome(outcome){{if(!lastSetupId){{alert('Save setup first');return;}} await fetch('/api/journal/outcome',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{setup_id:lastSetupId,outcome}})}}); await loadJournalStats();}}
 async function loadJournalStats(){{try{{const r=await fetch('/api/journal/stats'); const s=await r.json(); renderJournal(s);}}catch(e){{}}}}
 function toggleAuto(){{if(autoTimer){{clearInterval(autoTimer);autoTimer=null}} if($('autorefresh').checked) autoTimer=setInterval(loadSnapshot,60000)}}
@@ -296,6 +298,14 @@ def handle_journal_api(method, path, qs=None, body=None, db_path=DEFAULT_DB):
             stats = learning_stats(con)
             stats['recent'] = recent_setups(con, limit=10)
             return stats
+        if method == 'POST' and path == '/api/council/save':
+            data = json.loads(body or '{}') if isinstance(body, str) else (body or {})
+            review_id = save_council_review(con, data.get('snapshot') or {}, data.get('council') or {}, notes=data.get('notes', ''))
+            return {'ok': True, 'review_id': review_id}
+        if method == 'GET' and path == '/api/council/recent':
+            limit = int((qs or {}).get('limit', ['10'])[0]) if isinstance((qs or {}).get('limit'), list) else int((qs or {}).get('limit', 10))
+            recent = recent_council_reviews(con, limit=limit)
+            return {'total': len(recent), 'recent': recent}
         return {'error': 'not found'}
     finally:
         con.close()
@@ -332,6 +342,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return self._send(200, json.dumps(build_watchlist_payload(), ensure_ascii=False))
             if parsed.path == '/api/journal/stats':
                 return self._send(200, json.dumps(handle_journal_api('GET', parsed.path, qs), ensure_ascii=False))
+            if parsed.path == '/api/council/recent':
+                return self._send(200, json.dumps(handle_journal_api('GET', parsed.path, qs), ensure_ascii=False))
             return self._send(404, json.dumps({'error': 'not found'}))
         except Exception as e:
             return self._send(500, json.dumps({'error': str(e), 'trace': traceback.format_exc()}))
@@ -342,7 +354,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get('Content-Length', '0') or '0')
             body = self.rfile.read(length).decode('utf-8') if length else '{}'
-            if parsed.path in ('/api/journal/save', '/api/journal/outcome'):
+            if parsed.path in ('/api/journal/save', '/api/journal/outcome', '/api/council/save'):
                 return self._send(200, json.dumps(handle_journal_api('POST', parsed.path, qs, body), ensure_ascii=False))
             return self._send(404, json.dumps({'error': 'not found'}))
         except Exception as e:

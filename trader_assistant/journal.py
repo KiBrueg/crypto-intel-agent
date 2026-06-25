@@ -51,6 +51,20 @@ def init_journal(path=DEFAULT_DB):
             notes text not null default ''
         )
     ''')
+    con.execute('''
+        create table if not exists council_reviews (
+            id integer primary key autoincrement,
+            created_at text not null,
+            symbol text not null,
+            chair_verdict text not null,
+            action_bias text not null,
+            readiness_score integer,
+            advisor_count integer not null,
+            snapshot_json text not null,
+            council_json text not null,
+            notes text not null default ''
+        )
+    ''')
     con.commit()
     return con
 
@@ -130,3 +144,33 @@ def learning_stats(con):
     for k, c in counters.items():
         stats[k] = {name: dict(vals) for name, vals in c.items()}
     return stats
+
+
+def save_council_review(con, snapshot, council, notes=''):
+    chair = (council or {}).get('chair') or {}
+    pc = snapshot.get('pro_checklist') or {}
+    con.execute('''
+        insert into council_reviews(created_at, symbol, chair_verdict, action_bias, readiness_score, advisor_count, snapshot_json, council_json, notes)
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        _now(), str(snapshot.get('symbol', 'UNKNOWN')).upper(),
+        str(chair.get('verdict') or 'unknown'), str(chair.get('action_bias') or 'unknown'),
+        pc.get('readiness_score'), len((council or {}).get('advisors') or []),
+        _json(snapshot), _json(council), str(notes or ''),
+    ))
+    con.commit()
+    return int(con.execute('select last_insert_rowid()').fetchone()[0])
+
+
+def recent_council_reviews(con, limit=20):
+    rows = con.execute('select * from council_reviews order by id desc limit ?', (int(limit),)).fetchall()
+    out = []
+    for r in rows:
+        d = dict(r)
+        d.pop('snapshot_json', None)
+        try:
+            d['council'] = json.loads(d.pop('council_json'))
+        except Exception:
+            d['council'] = {}
+        out.append(d)
+    return out

@@ -17,6 +17,16 @@ idea/snapshot -> 5 advisors -> disagreements/consensus -> Chair verdict
 5. **Executor** — asks what must happen tomorrow morning and what the next operational check is.
 6. **Chair** — synthesizes the council into verdict, blockers and next actions.
 
+## Dashboard action
+
+Dashboard action:
+
+```text
+Ask Council + Save Verdict
+```
+
+This saves the current council result into the local SQLite journal table `council_reviews`, separate from setup outcomes.
+
 ## Why deterministic first
 
 The first version does not call external LLMs. It is intentionally deterministic:
