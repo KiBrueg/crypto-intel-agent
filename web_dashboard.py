@@ -28,6 +28,7 @@ from trader_assistant.journal import init_journal, save_setup, mark_outcome, lea
 from trader_assistant.ai_desk import build_ai_desk_notes
 from trader_assistant.council import run_council
 from trader_assistant.knowledge_graph import build_knowledge_graph
+from trader_assistant.simulation import run_rolling_simulations, calibrate_simulations
 
 DEFAULT_WATCHLIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'LINKUSDT', 'DOGEUSDT', 'ADAUSDT']
 DEFAULT_TIMEFRAMES = ('15m', '1h', '4h')
@@ -237,6 +238,7 @@ def render_dashboard_html():
       <div class="card section" style="margin-top:16px"><h3>Trader Coach</h3><div id="coach"></div></div>
       <div class="card section" style="margin-top:16px"><h3>Setup Journal</h3><div id="journal"></div><div class="row"><button class="btn secondary" onclick="markLastOutcome('target')">Mark target</button><button class="btn secondary" onclick="markLastOutcome('failed')">Mark failed</button></div></div>
       <div class="card section" style="margin-top:16px"><h3>Knowledge Graph</h3><div id="knowledgegraph"></div></div>
+      <div class="card section" style="margin-top:16px"><h3>Simulation Lab</h3><div id="simulationlab"></div><button class="btn secondary" onclick="runSimulationLab()">Run historical simulation</button></div>
       <div class="card section" style="margin-top:16px"><h3>Multi-Timeframe</h3><div id="mtf" class="tfgrid"></div></div>
       <div class="sections">
         <div class="card section"><h3>Technical Context</h3><ul class="list" id="tech"></ul></div>
@@ -262,6 +264,7 @@ async function saveCouncil(){{if(!lastSnapshot)return; const r=await fetch('/api
 async function markLastOutcome(outcome){{if(!lastSetupId){{alert('Save setup first');return;}} await fetch('/api/journal/outcome',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{setup_id:lastSetupId,outcome}})}}); await loadJournalStats();}}
 async function loadJournalStats(){{try{{const r=await fetch('/api/journal/stats'); const s=await r.json(); renderJournal(s); await loadKnowledgeGraph();}}catch(e){{}}}}
 async function loadKnowledgeGraph(){{try{{const r=await fetch('/api/graph?limit=100'); const g=await r.json(); renderKnowledgeGraph(g);}}catch(e){{}}}}
+async function runSimulationLab(){{try{{$('simulationlab').innerHTML='<p class="small">Running historical simulation…</p>'; const r=await fetch('/api/simulation?symbol='+encodeURIComponent($('symbol').value)+'&interval='+encodeURIComponent($('interval').value)+'&side='+encodeURIComponent($('side').value)); const s=await r.json(); renderSimulationLab(s);}}catch(e){{$('simulationlab').innerHTML='<p class="error">'+(e.stack||e)+'</p>';}}}}
 function toggleAuto(){{if(autoTimer){{clearInterval(autoTimer);autoTimer=null}} if($('autorefresh').checked) autoTimer=setInterval(loadSnapshot,60000)}}
 function setLoading(){{ $('metrics').innerHTML='<div class="metric"><div class="l">Status</div><div class="v">Loading…</div></div>'; }}
 function showError(e){{$('metrics').innerHTML=`<div class="metric"><div class="l">Error</div><div class="v bad">Failed</div></div>`; $('tech').innerHTML=`<li class="error">${{e.stack||e}}</li>`}}
@@ -278,6 +281,7 @@ function renderChecklist(c){{if(!c) return; const cls=c.status==='clean'?'good':
 function renderCoach(c){{if(!c) return; $('coach').innerHTML=`<p><b>${{c.headline}}</b></p><p class="small">${{c.explain_like_pro}}</p><h4>Teaching points</h4><ul class="list">${{(c.teaching_points||[]).map(x=>`<li>${{x}}</li>`).join('')}}</ul><h4>What to wait for</h4><ul class="list">${{(c.what_to_wait_for||[]).map(x=>`<li>${{x}}</li>`).join('')}}</ul>${{(c.learning_notes||[]).length?`<h4>Learning memory</h4><ul class="list">${{c.learning_notes.map(x=>`<li>${{x}}</li>`).join('')}}</ul>`:''}}`;}}
 function renderJournal(s){{if(!s||s.error)return; const recent=(s.recent||[]).slice(0,5).map(x=>`<li>#${{x.id}} ${{x.symbol}} — ${{x.outcome}} — R/R ${{fmt(x.rr_ratio)}} — ${{x.checklist_status}}</li>`).join(''); $('journal').innerHTML=`<p><b>Total saved setups:</b> ${{s.total||0}}</p><p class="small">Save setups, mark outcomes, and the Coach will learn which patterns/R/R buckets deserve caution.</p><ul class="list">${{recent||'<li>No saved setups yet.</li>'}}</ul>`;}}
 function renderKnowledgeGraph(g){{if(!g||g.error)return; const kinds=Object.entries((g.summary||{{}}).node_kinds||{{}}).map(([k,v])=>`${{k}}:${{v}}`).join(' · '); const rels=(g.top_relations||[]).slice(0,8).map(r=>`<li>${{r.type}} — ${{r.count}}</li>`).join(''); $('knowledgegraph').innerHTML=`<p><b>${{(g.summary||{{}}).node_count||0}}</b> nodes · <b>${{(g.summary||{{}}).edge_count||0}}</b> edges</p><p class="small">${{kinds||'No graph memory yet. Save setups/council verdicts first.'}}</p><ul class="list">${{rels||'<li>No relations yet.</li>'}}</ul>`;}}
+function renderSimulationLab(s){{if(!s||s.error){{$('simulationlab').innerHTML=`<p class="error">${{s&&s.error?s.error:'Simulation failed'}}</p>`;return;}} const rows=Object.entries(s.by_predicted_status||{{}}).map(([k,v])=>`<li><b>${{k}}</b>: total ${{v.total}}, target ${{Math.round((v.target_rate||0)*100)}}%, stopped ${{Math.round((v.stop_rate||0)*100)}}%</li>`).join(''); $('simulationlab').innerHTML=`<p><b>${{s.symbol}}</b> ${{s.interval}} · simulations: <b>${{s.total}}</b></p><ul class="list">${{rows||'<li>No simulation rows.</li>'}}</ul><h4>Calibration</h4><ul class="list">${{(s.recommendations||[]).map(x=>`<li>${{x}}</li>`).join('')}}</ul>`;}}
 function renderMTF(mtf){{if(!mtf||!mtf.frames) return; $('mtf').innerHTML=mtf.frames.map(f=>`<div class="tf"><b>${{f.interval}}</b><div>Trend: <span class="${{f.trend==='bearish'?'bad':(f.trend==='bullish'?'good':'warn')}}">${{f.trend}}</span></div><div>RSI: ${{fmt(f.rsi_14)}}</div><div>VWAP Δ: ${{fmt(f.price_vs_vwap_pct)}}%</div><div class="small">${{f.note||''}}</div></div>`).join('');}}
 function renderPatterns(patterns){{if(!patterns.length){{$('patterns').innerHTML='<li>No high-signal classic pattern detected. Wait for cleaner structure.</li>'; return;}} $('patterns').innerHTML=patterns.map(p=>`<li><b class="${{p.bias==='bearish'?'bad':(p.bias==='bullish'?'good':'warn')}}">${{p.name}}</b> — ${{p.bias}}, confidence ${{fmt(p.confidence)}}<br><span class="small">${{p.trader_note}}</span></li>`).join('');}}
 function drawChart(candles, levels){{const c=$('chart'), ctx=c.getContext('2d'), w=c.width,h=c.height; ctx.clearRect(0,0,w,h); ctx.fillStyle='#080814'; ctx.fillRect(0,0,w,h); if(!candles||!candles.length)return; const hi=Math.max(...candles.map(x=>x.high)), lo=Math.min(...candles.map(x=>x.low)), span=hi-lo||1, pad=28; const X=i=>pad+i*(w-pad*2)/Math.max(1,candles.length-1), Y=p=>pad+(hi-p)/span*(h-pad*2);
@@ -347,6 +351,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return self._send(200, json.dumps(build_multi_timeframe_payload(symbol), ensure_ascii=False))
             if parsed.path == '/api/watchlist':
                 return self._send(200, json.dumps(build_watchlist_payload(), ensure_ascii=False))
+            if parsed.path == '/api/simulation':
+                symbol = (qs.get('symbol') or ['BTCUSDT'])[0].upper()
+                interval = (qs.get('interval') or ['1h'])[0]
+                side = (qs.get('side') or ['long'])[0]
+                candles = fetch_klines(symbol, interval, int((qs.get('limit') or ['240'])[0]))
+                simulations = run_rolling_simulations(candles, side=side, lookahead=int((qs.get('lookahead') or ['12'])[0]), stride=int((qs.get('stride') or ['6'])[0]))
+                report = calibrate_simulations(simulations)
+                report['symbol'] = symbol
+                report['interval'] = interval
+                report['sample'] = simulations[-10:]
+                return self._send(200, json.dumps(report, ensure_ascii=False))
             if parsed.path == '/api/journal/stats':
                 return self._send(200, json.dumps(handle_journal_api('GET', parsed.path, qs), ensure_ascii=False))
             if parsed.path == '/api/council/recent':
