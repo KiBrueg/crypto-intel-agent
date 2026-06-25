@@ -25,8 +25,11 @@ def test_ai_desk_notes_create_role_cards_without_trade_commands():
     notes = build_ai_desk_notes(sample_snapshot())
     assert notes['mode'] == 'ai_desk'
     roles = [card['role'] for card in notes['cards']]
+    assert len(roles) == 6
     assert 'Market Brief' in roles
-    assert 'Bull/Bear Debate' in roles
+    assert 'Technical Analyst' in roles
+    assert 'Bull Case' in roles
+    assert 'Bear Case' in roles
     assert 'Risk Manager' in roles
     assert 'Trader Coach' in roles
     text = str(notes).lower()
@@ -37,8 +40,10 @@ def test_ai_desk_notes_create_role_cards_without_trade_commands():
 
 def test_ai_desk_notes_surface_conflicts_and_wait_conditions():
     notes = build_ai_desk_notes(sample_snapshot())
-    debate = next(card for card in notes['cards'] if card['role'] == 'Bull/Bear Debate')
-    assert any('conflict' in item.lower() or 'bearish' in item.lower() for item in debate['key_points'])
+    bull = next(card for card in notes['cards'] if card['role'] == 'Bull Case')
+    bear = next(card for card in notes['cards'] if card['role'] == 'Bear Case')
+    assert any('bullish' in item.lower() or 'bid' in item.lower() for item in bull['key_points'])
+    assert any('bearish' in item.lower() or 'risk/reward' in item.lower() for item in bear['key_points'])
     risk = next(card for card in notes['cards'] if card['role'] == 'Risk Manager')
     assert risk['verdict'] in {'reject', 'caution'}
     assert any('R/R' in item or 'risk/reward' in item.lower() for item in risk['key_points'])

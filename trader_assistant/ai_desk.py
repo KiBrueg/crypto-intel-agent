@@ -77,6 +77,20 @@ def build_ai_desk_notes(snapshot):
         'template': 'templates/ai/market_brief.md',
     })
 
+    analysis = snapshot.get('analysis') or {}
+    indicators = analysis.get('indicators') or {}
+    cards.append({
+        'role': 'Technical Analyst',
+        'verdict': analysis.get('trend', status),
+        'key_points': _clean_text([
+            f"Trend read: {analysis.get('trend', 'n/a')} at price {analysis.get('price', 'n/a')}.",
+            f"RSI14={indicators.get('rsi_14', 'n/a')}, VWAP={indicators.get('vwap', 'n/a')}, ATR14={indicators.get('atr_14', 'n/a')}.",
+            f"Pattern map: bullish={', '.join(bullish_pats) or 'none'}, bearish={', '.join(bearish_pats) or 'none'}.",
+            "Technical job: locate structure, levels and invalidation before any thesis.",
+        ]),
+        'template': 'templates/ai/setup_review.md',
+    })
+
     bull_points = []
     bear_points = []
     if bullish_pats:
@@ -92,12 +106,18 @@ def build_ai_desk_notes(snapshot):
     if rr_quality in ('weak', 'low', 'n/a') or (rr_value is not None and rr_value < 1.2):
         bear_points.append(f"Risk/reward is not attractive yet: {rr_value} / {rr_quality}.")
     cards.append({
-        'role': 'Bull/Bear Debate',
-        'verdict': 'conflict' if conflict else 'one-sided',
+        'role': 'Bull Case',
+        'verdict': 'possible' if bull_points else 'weak',
+        'key_points': _clean_text(bull_points or ['No strong bullish evidence surfaced.']),
+        'template': 'templates/ai/bull_bear_debate.md',
+    })
+
+    cards.append({
+        'role': 'Bear Case',
+        'verdict': 'possible' if bear_points else 'weak',
         'key_points': _clean_text([
-            *(bull_points or ['No strong bullish evidence surfaced.']),
             *(bear_points or ['No strong bearish evidence surfaced.']),
-            'Conflict requires a resolving level, not a forced thesis.' if conflict else 'Watch for new contradicting evidence before acting on the thesis.',
+            'Conflict requires a resolving level, not a forced thesis.' if conflict else 'Continue checking for invalidation and failed-break risk.',
         ]),
         'template': 'templates/ai/bull_bear_debate.md',
     })

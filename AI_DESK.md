@@ -2,10 +2,12 @@
 
 The AI Desk is the role-based reasoning layer for Crypto Intel Agent.
 
-It turns one dashboard snapshot into a small trading-desk style set of notes:
+It turns one dashboard snapshot into a six-pane trading-desk style set of notes — inspired by "one window, multiple AIs, each doing a job" utilities:
 
 - Market Brief
-- Bull/Bear Debate
+- Technical Analyst
+- Bull Case
+- Bear Case
 - Risk Manager
 - Trader Coach
 
@@ -15,6 +17,7 @@ A single AI answer is easy to over-trust. A real trading desk separates jobs:
 
 ```text
 analyst gathers facts
+risk/technical analyst maps structure
 bull case tests upside
 bear case tests downside
 risk manager rejects bad math
@@ -54,12 +57,12 @@ The first version is deterministic and local. It does not call an external LLM y
   "readiness_score": 35,
   "summary": "AI Desk synthesis...",
   "cards": [
-    {
-      "role": "Market Brief",
-      "verdict": "not_clean",
-      "key_points": [],
-      "template": "templates/ai/market_brief.md"
-    }
+    {"role": "Market Brief", "verdict": "not_clean"},
+    {"role": "Technical Analyst", "verdict": "mixed"},
+    {"role": "Bull Case", "verdict": "possible"},
+    {"role": "Bear Case", "verdict": "possible"},
+    {"role": "Risk Manager", "verdict": "reject"},
+    {"role": "Trader Coach", "verdict": "teach"}
   ]
 }
 ```

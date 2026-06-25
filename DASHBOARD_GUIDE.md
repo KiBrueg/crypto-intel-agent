@@ -28,7 +28,7 @@ http://127.0.0.1:8765
 - Pro Trader Checklist: readiness score, pass/warn/fail checks, blockers and next checks.
 - Trader Coach: teaching points, what to wait for, and optional learning memory from saved setup feedback.
 - Setup Journal: save current snapshot, mark outcome, and feed local SQLite stats back into Coach.
-- AI Desk Notes: role-based synthesis using Market Brief, Bull/Bear Debate, Risk Manager and Trader Coach cards.
+- AI Desk Notes: six-pane role-based synthesis using Market Brief, Technical Analyst, Bull Case, Bear Case, Risk Manager and Trader Coach cards.
 - Candlestick chart with detected levels.
 - EMA9 / EMA21 / VWAP / RSI14 / ATR14.
 - Entry-based risk/reward calculator.
