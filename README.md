@@ -4,6 +4,10 @@ Automated market monitoring tool for CoinGecko and DexScreener data.
 
 Collects public market data → detects unusual price/volume/liquidity movements → generates HTML and Markdown reports.
 
+**Core product idea:** do what a real experienced trader would manually check on a chart — market regime, levels, patterns, order book, sentiment confirmation, multi-timeframe context and risk/reward — only faster, more consistently, and before the trader has to remember to check it.
+
+See `PRODUCT_VISION.md` for the north-star workflow.
+
 **Not a trading bot. No financial advice. No fund management.**
 
 ---
