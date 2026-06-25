@@ -28,6 +28,7 @@ http://127.0.0.1:8765
 - Candlestick chart with detected levels.
 - EMA9 / EMA21 / VWAP / RSI14 / ATR14.
 - Entry-based risk/reward calculator.
+- Classic price-pattern hints: engulfing, hammer/shooting star, doji, double top/bottom, triangle compression and bull/bear flag watch.
 - Fear & Greed confirmation: whether sentiment is confirmed or contradicted by structure.
 - Order book spread, imbalance, bid/ask wall notes.
 - Export JSON snapshot button.
