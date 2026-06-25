@@ -7,6 +7,7 @@ Collects public market data → detects unusual price/volume/liquidity movements
 **Core product idea:** do what a real experienced trader would manually check on a chart — market regime, levels, patterns, order book, sentiment confirmation, multi-timeframe context and risk/reward — only faster, more consistently, and before the trader has to remember to check it.
 
 See `PRODUCT_VISION.md` for the north-star workflow.
+See `GITHUB_RESEARCH_NOTES.md` for open-source projects/concepts used as architecture inspiration.
 
 **Not a trading bot. No financial advice. No fund management.**
 
@@ -30,6 +31,7 @@ See `PRODUCT_VISION.md` for the north-star workflow.
 | Risk/Reward Math | Calculates hypothetical level-based R/R for breakout, pullback, breakdown and rejection setups with invalidation notes |
 | Browser Dashboard | Local web UI at `http://127.0.0.1:8765` with watchlist buttons, auto-refresh, export JSON, multi-timeframe cards, chart, technical context, order book, Fear/Greed and entry-based R/R quality |
 | Classic Pattern Hints | Detects conservative TA hints: engulfing, hammer/shooting star, doji, double top/bottom, triangle compression, bull/bear flag watch |
+| Pro Trader Checklist | Compresses context into pass/warn/fail checks, readiness score, blockers and next checks — the “what a pro would check next” layer |
 
 ---
 
