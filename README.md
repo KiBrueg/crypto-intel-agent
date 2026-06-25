@@ -11,6 +11,7 @@ See `GITHUB_RESEARCH_NOTES.md` for open-source projects/concepts used as archite
 See `TRADER_COACH.md` for the teaching/learning prompt layer.
 See `SETUP_JOURNAL.md` for the local outcome-tracking loop.
 See `AI_TRADING_AGENT_TEMPLATES.md` and `templates/ai/` for reusable AI prompt/agent templates inspired by GitHub research.
+See `AI_DESK.md` for the role-based AI Desk synthesis layer.
 
 **Not a trading bot. No financial advice. No fund management.**
 
@@ -38,6 +39,7 @@ See `AI_TRADING_AGENT_TEMPLATES.md` and `templates/ai/` for reusable AI prompt/a
 | Trader Coach | Turns checklist + patterns + R/R + MTF into teaching prompts: why it matters, what to wait for, and what similar saved feedback suggests |
 | Setup Journal | Saves dashboard snapshots to SQLite, tracks outcomes, and feeds pattern/R/R/checklist statistics back into the Coach |
 | AI Agent Templates | Markdown prompt templates for market brief, setup review, bull/bear debate, risk manager, trader coach and journal review |
+| AI Desk Notes | Role-based synthesis cards: Market Brief, Bull/Bear Debate, Risk Manager and Trader Coach, grounded in the current dashboard snapshot |
 
 ---
 
