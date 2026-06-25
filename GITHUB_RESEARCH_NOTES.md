@@ -12,6 +12,9 @@ Searched GitHub for mature open-source trading/technical-analysis projects to av
 - `nardew/talipp` / `kand-ta/kand` — incremental / high-performance TA libraries. Future direction if we need faster live updates.
 - `Eleven-Trading/TradeNote` — open-source trading journal. Product lesson: serious tools need a review/recollection loop, not only live scanning.
 - Smaller crypto journal dashboards — common feature pattern: save setup, mark outcome, compute win/loss or setup stats. We adapt this as local SQLite learning memory without PnL or broker integration.
+- `TauricResearch/TradingAgents` — multi-agent LLM financial trading framework. Product lesson: split LLM reasoning into analysts, bull/bear researchers, trader synthesis and risk/portfolio review instead of one monolithic prompt.
+- `alphaparkinc/tradingagents-skill` — example of packaging a trading-agent framework as a reusable skill. Product lesson: keep role definitions and workflow in markdown so other AI tools can reuse them.
+- `annaescalada/trading-gpt-assistant-nodejs` — generates daily GPT prompts with indicators/news/support/resistance and stores structured JSON results. Product lesson: prompt templates should enforce strict output structure and include previous results.
 
 ## What we adopted conceptually
 
@@ -35,6 +38,10 @@ Searched GitHub for mature open-source trading/technical-analysis projects to av
   - mark outcome later
   - group outcomes by pattern, R/R quality, checklist status and symbol
   - feed the stats back into the Coach as caution/teaching notes
+- AI prompt/template layer:
+  - reusable markdown roles for market brief, setup review, bull/bear debate, risk manager, trader coach and journal review
+  - strict sections/JSON-friendly structure rather than free-form opinions
+  - safety framing: no direct trade commands, no auto-execution
 
 ## What we deliberately did not copy
 

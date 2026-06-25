@@ -10,6 +10,7 @@ See `PRODUCT_VISION.md` for the north-star workflow.
 See `GITHUB_RESEARCH_NOTES.md` for open-source projects/concepts used as architecture inspiration.
 See `TRADER_COACH.md` for the teaching/learning prompt layer.
 See `SETUP_JOURNAL.md` for the local outcome-tracking loop.
+See `AI_TRADING_AGENT_TEMPLATES.md` and `templates/ai/` for reusable AI prompt/agent templates inspired by GitHub research.
 
 **Not a trading bot. No financial advice. No fund management.**
 
@@ -36,6 +37,7 @@ See `SETUP_JOURNAL.md` for the local outcome-tracking loop.
 | Pro Trader Checklist | Compresses context into pass/warn/fail checks, readiness score, blockers and next checks — the “what a pro would check next” layer |
 | Trader Coach | Turns checklist + patterns + R/R + MTF into teaching prompts: why it matters, what to wait for, and what similar saved feedback suggests |
 | Setup Journal | Saves dashboard snapshots to SQLite, tracks outcomes, and feeds pattern/R/R/checklist statistics back into the Coach |
+| AI Agent Templates | Markdown prompt templates for market brief, setup review, bull/bear debate, risk manager, trader coach and journal review |
 
 ---
 
