@@ -47,6 +47,7 @@ def test_dashboard_html_contains_core_controls_and_sections():
     assert 'Classic Price Patterns' in html
     assert 'Pro Trader Checklist' in html
     assert 'Trader Coach' in html
+    assert 'Setup Journal' in html
     assert '/api/snapshot' in html
     assert '/api/risk-reward' in html
     assert '/api/multi-timeframe' in html

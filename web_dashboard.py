@@ -24,6 +24,7 @@ from trader_assistant.fear_greed import fetch_fear_greed_index, evaluate_fear_gr
 from trader_assistant.patterns import detect_classic_patterns
 from trader_assistant.checklist import build_pro_trader_checklist
 from trader_assistant.coach import build_trader_coach, load_learning_stats
+from trader_assistant.journal import init_journal, save_setup, mark_outcome, learning_stats, recent_setups, DEFAULT_DB
 
 DEFAULT_WATCHLIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'LINKUSDT', 'DOGEUSDT', 'ADAUSDT']
 DEFAULT_TIMEFRAMES = ('15m', '1h', '4h')
@@ -160,6 +161,14 @@ def build_snapshot_payload(
     }
     pro_checklist = build_pro_trader_checklist(partial)
     coach_snapshot = {**partial, 'pro_checklist': pro_checklist}
+    try:
+        _con = init_journal(DEFAULT_DB)
+        try:
+            journal_memory = learning_stats(_con)
+        finally:
+            _con.close()
+    except Exception:
+        journal_memory = load_learning_stats()
     return {
         'symbol': symbol,
         'interval': interval,
@@ -173,7 +182,7 @@ def build_snapshot_payload(
         'fear_greed': fg,
         'classic_patterns': patterns,
         'pro_checklist': pro_checklist,
-        'trader_coach': build_trader_coach(coach_snapshot, load_learning_stats()),
+        'trader_coach': build_trader_coach(coach_snapshot, journal_memory),
     }
 
 
@@ -206,6 +215,7 @@ def render_dashboard_html():
       <button class="btn" onclick="loadSnapshot()">Refresh dashboard</button>
       <button class="btn secondary" onclick="calcRR()">Calculate R/R only</button>
       <button class="btn secondary" onclick="exportJSON()">Export JSON</button>
+      <button class="btn secondary" onclick="saveSetup()">Save Setup</button>
       <label><input id="autorefresh" type="checkbox" style="width:auto;margin-right:8px" onchange="toggleAuto()">Auto refresh 60s</label>
       <p class="small">Manual stop/target wins. If empty, the dashboard infers stop/target from nearby support/resistance, pivots, Fibonacci and ATR buffer.</p>
     </div>
@@ -214,6 +224,7 @@ def render_dashboard_html():
       <canvas class="chart" id="chart" width="980" height="340"></canvas>
       <div class="card section" style="margin-top:16px"><h3>Pro Trader Checklist</h3><div id="checklist"></div></div>
       <div class="card section" style="margin-top:16px"><h3>Trader Coach</h3><div id="coach"></div></div>
+      <div class="card section" style="margin-top:16px"><h3>Setup Journal</h3><div id="journal"></div><div class="row"><button class="btn secondary" onclick="markLastOutcome('target')">Mark target</button><button class="btn secondary" onclick="markLastOutcome('failed')">Mark failed</button></div></div>
       <div class="card section" style="margin-top:16px"><h3>Multi-Timeframe</h3><div id="mtf" class="tfgrid"></div></div>
       <div class="sections">
         <div class="card section"><h3>Technical Context</h3><ul class="list" id="tech"></ul></div>
@@ -226,7 +237,7 @@ def render_dashboard_html():
   </div>
 </div>
 <script>
-const $=id=>document.getElementById(id); let lastSnapshot=null, autoTimer=null;
+const $=id=>document.getElementById(id); let lastSnapshot=null, autoTimer=null, lastSetupId=null;
 function q(){{const p=new URLSearchParams(); ['symbol','interval','side','entry','stop','target'].forEach(id=>{{if($(id).value)p.set(id,$(id).value)}}); return p.toString();}}
 function fmt(x){{return x===null||x===undefined?'n/a':(typeof x==='number'?Number(x.toFixed(6)).toString():x)}}
 function li(items){{return items.map(x=>`<li>${{x}}</li>`).join('')}}
@@ -234,18 +245,22 @@ function setSymbol(s){{$('symbol').value=s; loadSnapshot();}}
 async function loadSnapshot(){{setLoading(); try{{const [sr, mr]=await Promise.all([fetch('/api/snapshot?'+q()), fetch('/api/multi-timeframe?symbol='+encodeURIComponent($('symbol').value))]); const data=await sr.json(); const mtf=await mr.json(); if(data.error) throw new Error(data.error); if(mtf.error) throw new Error(mtf.error); data.multi_timeframe=mtf; render(data);}}catch(e){{showError(e)}}}}
 async function calcRR(){{try{{const p=new URLSearchParams(q()); const r=await fetch('/api/risk-reward?'+p.toString()); const rr=await r.json(); if(rr.error) throw new Error(rr.error); renderRR(rr);}}catch(e){{showError(e)}}}}
 function exportJSON(){{if(!lastSnapshot)return; const blob=new Blob([JSON.stringify(lastSnapshot,null,2)],{{type:'application/json'}}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`crypto-trader-snapshot-${{lastSnapshot.symbol}}.json`; a.click(); URL.revokeObjectURL(a.href);}}
+async function saveSetup(){{if(!lastSnapshot)return; const r=await fetch('/api/journal/save',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{snapshot:lastSnapshot,notes:'saved from dashboard'}})}}); const data=await r.json(); if(data.ok){{lastSetupId=data.setup_id; await loadJournalStats();}}}}
+async function markLastOutcome(outcome){{if(!lastSetupId){{alert('Save setup first');return;}} await fetch('/api/journal/outcome',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{setup_id:lastSetupId,outcome}})}}); await loadJournalStats();}}
+async function loadJournalStats(){{try{{const r=await fetch('/api/journal/stats'); const s=await r.json(); renderJournal(s);}}catch(e){{}}}}
 function toggleAuto(){{if(autoTimer){{clearInterval(autoTimer);autoTimer=null}} if($('autorefresh').checked) autoTimer=setInterval(loadSnapshot,60000)}}
 function setLoading(){{ $('metrics').innerHTML='<div class="metric"><div class="l">Status</div><div class="v">Loading…</div></div>'; }}
 function showError(e){{$('metrics').innerHTML=`<div class="metric"><div class="l">Error</div><div class="v bad">Failed</div></div>`; $('tech').innerHTML=`<li class="error">${{e.stack||e}}</li>`}}
 function render(data){{lastSnapshot=data; const a=data.analysis, ind=a.indicators, ob=data.order_book, rr=data.risk_reward, fg=data.fear_greed, ql=(rr.rr_quality||{{label:'n/a',class:'muted'}});
  $('metrics').innerHTML=[['Symbol',data.symbol,''],['Price',fmt(a.price),''],['Trend',a.trend,a.trend==='bearish'?'bad':(a.trend==='bullish'?'good':'warn')],['R/R',fmt(rr.risk_reward_ratio),ql.class],['Quality',ql.label,ql.class]].map(m=>`<div class="metric"><div class="l">${{m[0]}}</div><div class="v ${{m[2]}}">${{m[1]}}</div></div>`).join('');
  $('tech').innerHTML=li([`EMA9/EMA21: <span class="mono">${{fmt(ind.ema_9)}} / ${{fmt(ind.ema_21)}}</span>`,`VWAP: <span class="mono">${{fmt(ind.vwap)}}</span>`,`RSI14: <span class="mono">${{fmt(ind.rsi_14)}}</span>`,`ATR14: <span class="mono">${{fmt(ind.atr_14)}}</span>`,...(a.setup_notes||[])]);
- renderRR(rr); renderChecklist(data.pro_checklist); renderCoach(data.trader_coach); renderMTF(data.multi_timeframe); renderPatterns(data.classic_patterns||[]); $('fg').innerHTML=li([`Index: <b>${{fg.index_value}}</b> / ${{fg.label}}`,`Confirmation: <b>${{fg.confirmation}}</b>`,`Score: <span class="mono">${{fmt(fg.score)}}</span>`,fg.interpretation]);
+ renderRR(rr); renderChecklist(data.pro_checklist); renderCoach(data.trader_coach); loadJournalStats(); renderMTF(data.multi_timeframe); renderPatterns(data.classic_patterns||[]); $('fg').innerHTML=li([`Index: <b>${{fg.index_value}}</b> / ${{fg.label}}`,`Confirmation: <b>${{fg.confirmation}}</b>`,`Score: <span class="mono">${{fmt(fg.score)}}</span>`,fg.interpretation]);
  const fib=a.levels.fibonacci||{{}}, piv=a.levels.pivots||{{}}; $('book').innerHTML=li([`Spread: <span class="mono">${{fmt(ob.spread_bps)}}</span> bps`,`Imbalance: <span class="mono">${{fmt(ob.imbalance)}}</span>`,`Signals: ${{(ob.signals||['none']).join(', ')}}`,`Nearest: ${{(a.levels.nearest||[]).map(fmt).join(', ')}}`,`Fib .382/.5/.618: ${{fmt(fib['0.382'])}}, ${{fmt(fib['0.500'])}}, ${{fmt(fib['0.618'])}}`,`Pivot/R1/S1: ${{fmt(piv.pivot)}}, ${{fmt(piv.r1)}}, ${{fmt(piv.s1)}}`]);
  drawChart(data.candles, a.levels); }}
 function renderRR(rr){{const q=rr.rr_quality||{{label:'n/a',class:'muted',message:''}}; $('rr').innerHTML=li([`Source: <b>${{rr.source}}</b>`,`Entry: <span class="mono">${{fmt(rr.entry)}}</span>`,`Stop: <span class="mono">${{fmt(rr.stop)}}</span>`,`Target: <span class="mono">${{fmt(rr.target)}}</span>`,`Risk: <span class="mono">${{fmt(rr.risk_per_unit)}}</span>`,`Reward: <span class="mono">${{fmt(rr.reward_per_unit)}}</span>`,`R/R: <b class="${{q.class}}">${{fmt(rr.risk_reward_ratio)}} / ${{q.label}}</b>`,`Quality note: ${{q.message}}`,`Valid: ${{rr.valid}}`,`Invalidation: ${{rr.invalidation||'n/a'}}`,...(rr.warnings||[]).map(w=>`Warning: <span class="warn">${{w}}</span>`)]);}}
 function renderChecklist(c){{if(!c) return; const cls=c.status==='clean'?'good':(c.status==='not_clean'?'bad':'warn'); $('checklist').innerHTML=`<div class="metric"><div class="l">Readiness</div><div class="v ${{cls}}">${{c.readiness_score}} / 100 — ${{c.status}}</div></div><p class="small">${{c.summary}}</p><ul class="list">${{c.checklist.map(x=>`<li><b>${{x.name}}</b>: <span class="${{x.status==='pass'?'good':(x.status==='fail'?'bad':'warn')}}">${{x.status}}</span> — ${{x.detail}}</li>`).join('')}}</ul><p class="small"><b>Next checks:</b> ${{(c.next_checks||[]).slice(0,3).join(' · ')}}</p>`;}}
 function renderCoach(c){{if(!c) return; $('coach').innerHTML=`<p><b>${{c.headline}}</b></p><p class="small">${{c.explain_like_pro}}</p><h4>Teaching points</h4><ul class="list">${{(c.teaching_points||[]).map(x=>`<li>${{x}}</li>`).join('')}}</ul><h4>What to wait for</h4><ul class="list">${{(c.what_to_wait_for||[]).map(x=>`<li>${{x}}</li>`).join('')}}</ul>${{(c.learning_notes||[]).length?`<h4>Learning memory</h4><ul class="list">${{c.learning_notes.map(x=>`<li>${{x}}</li>`).join('')}}</ul>`:''}}`;}}
+function renderJournal(s){{if(!s||s.error)return; const recent=(s.recent||[]).slice(0,5).map(x=>`<li>#${{x.id}} ${{x.symbol}} — ${{x.outcome}} — R/R ${{fmt(x.rr_ratio)}} — ${{x.checklist_status}}</li>`).join(''); $('journal').innerHTML=`<p><b>Total saved setups:</b> ${{s.total||0}}</p><p class="small">Save setups, mark outcomes, and the Coach will learn which patterns/R/R buckets deserve caution.</p><ul class="list">${{recent||'<li>No saved setups yet.</li>'}}</ul>`;}}
 function renderMTF(mtf){{if(!mtf||!mtf.frames) return; $('mtf').innerHTML=mtf.frames.map(f=>`<div class="tf"><b>${{f.interval}}</b><div>Trend: <span class="${{f.trend==='bearish'?'bad':(f.trend==='bullish'?'good':'warn')}}">${{f.trend}}</span></div><div>RSI: ${{fmt(f.rsi_14)}}</div><div>VWAP Δ: ${{fmt(f.price_vs_vwap_pct)}}%</div><div class="small">${{f.note||''}}</div></div>`).join('');}}
 function renderPatterns(patterns){{if(!patterns.length){{$('patterns').innerHTML='<li>No high-signal classic pattern detected. Wait for cleaner structure.</li>'; return;}} $('patterns').innerHTML=patterns.map(p=>`<li><b class="${{p.bias==='bearish'?'bad':(p.bias==='bullish'?'good':'warn')}}">${{p.name}}</b> — ${{p.bias}}, confidence ${{fmt(p.confidence)}}<br><span class="small">${{p.trader_note}}</span></li>`).join('');}}
 function drawChart(candles, levels){{const c=$('chart'), ctx=c.getContext('2d'), w=c.width,h=c.height; ctx.clearRect(0,0,w,h); ctx.fillStyle='#080814'; ctx.fillRect(0,0,w,h); if(!candles||!candles.length)return; const hi=Math.max(...candles.map(x=>x.high)), lo=Math.min(...candles.map(x=>x.low)), span=hi-lo||1, pad=28; const X=i=>pad+i*(w-pad*2)/Math.max(1,candles.length-1), Y=p=>pad+(hi-p)/span*(h-pad*2);
@@ -253,6 +268,26 @@ function drawChart(candles, levels){{const c=$('chart'), ctx=c.getContext('2d'),
  candles.forEach((k,i)=>{{const x=X(i), o=Y(k.open), cl=Y(k.close), hh=Y(k.high), ll=Y(k.low), up=k.close>=k.open; ctx.strokeStyle=up?'#149e61':'#ef4444'; ctx.fillStyle=ctx.strokeStyle; ctx.beginPath(); ctx.moveTo(x,hh); ctx.lineTo(x,ll); ctx.stroke(); ctx.fillRect(x-2,Math.min(o,cl),4,Math.max(1,Math.abs(cl-o)));}});}}
 loadSnapshot();
 </script></body></html>'''
+
+
+def handle_journal_api(method, path, qs=None, body=None, db_path=DEFAULT_DB):
+    con = init_journal(db_path)
+    try:
+        if method == 'POST' and path == '/api/journal/save':
+            data = json.loads(body or '{}')
+            setup_id = save_setup(con, data.get('snapshot') or {}, notes=data.get('notes', ''))
+            return {'ok': True, 'setup_id': setup_id}
+        if method == 'POST' and path == '/api/journal/outcome':
+            data = json.loads(body or '{}')
+            row = mark_outcome(con, data.get('setup_id'), data.get('outcome'), notes=data.get('notes'))
+            return {'ok': True, 'setup': row}
+        if method == 'GET' and path == '/api/journal/stats':
+            stats = learning_stats(con)
+            stats['recent'] = recent_setups(con, limit=10)
+            return stats
+        return {'error': 'not found'}
+    finally:
+        con.close()
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
@@ -284,6 +319,20 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return self._send(200, json.dumps(build_multi_timeframe_payload(symbol), ensure_ascii=False))
             if parsed.path == '/api/watchlist':
                 return self._send(200, json.dumps(build_watchlist_payload(), ensure_ascii=False))
+            if parsed.path == '/api/journal/stats':
+                return self._send(200, json.dumps(handle_journal_api('GET', parsed.path, qs), ensure_ascii=False))
+            return self._send(404, json.dumps({'error': 'not found'}))
+        except Exception as e:
+            return self._send(500, json.dumps({'error': str(e), 'trace': traceback.format_exc()}))
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        qs = parse_qs(parsed.query)
+        try:
+            length = int(self.headers.get('Content-Length', '0') or '0')
+            body = self.rfile.read(length).decode('utf-8') if length else '{}'
+            if parsed.path in ('/api/journal/save', '/api/journal/outcome'):
+                return self._send(200, json.dumps(handle_journal_api('POST', parsed.path, qs, body), ensure_ascii=False))
             return self._send(404, json.dumps({'error': 'not found'}))
         except Exception as e:
             return self._send(500, json.dumps({'error': str(e), 'trace': traceback.format_exc()}))

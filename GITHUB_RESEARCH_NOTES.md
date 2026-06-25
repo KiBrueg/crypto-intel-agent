@@ -10,6 +10,8 @@ Searched GitHub for mature open-source trading/technical-analysis projects to av
 - `freqtrade/freqtrade-strategies` and `freqtrade/technical` — examples of strategy modules and collected indicators. Useful lesson: rules should be testable and modular.
 - `freqtrade/frequi` — UI project for trading workflow. Useful product lesson: dashboards need watchlists, summary cards and drill-down details.
 - `nardew/talipp` / `kand-ta/kand` — incremental / high-performance TA libraries. Future direction if we need faster live updates.
+- `Eleven-Trading/TradeNote` — open-source trading journal. Product lesson: serious tools need a review/recollection loop, not only live scanning.
+- Smaller crypto journal dashboards — common feature pattern: save setup, mark outcome, compute win/loss or setup stats. We adapt this as local SQLite learning memory without PnL or broker integration.
 
 ## What we adopted conceptually
 
@@ -28,6 +30,11 @@ Searched GitHub for mature open-source trading/technical-analysis projects to av
   - do not show 100 raw indicators
   - convert them into `pass / warn / fail` checks
   - show blockers and next checks
+- Journal feedback loop:
+  - save full setup snapshots
+  - mark outcome later
+  - group outcomes by pattern, R/R quality, checklist status and symbol
+  - feed the stats back into the Coach as caution/teaching notes
 
 ## What we deliberately did not copy
 

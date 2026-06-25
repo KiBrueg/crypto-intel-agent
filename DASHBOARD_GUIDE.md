@@ -27,6 +27,7 @@ http://127.0.0.1:8765
 - Multi-timeframe context: 15m / 1h / 4h.
 - Pro Trader Checklist: readiness score, pass/warn/fail checks, blockers and next checks.
 - Trader Coach: teaching points, what to wait for, and optional learning memory from saved setup feedback.
+- Setup Journal: save current snapshot, mark outcome, and feed local SQLite stats back into Coach.
 - Candlestick chart with detected levels.
 - EMA9 / EMA21 / VWAP / RSI14 / ATR14.
 - Entry-based risk/reward calculator.

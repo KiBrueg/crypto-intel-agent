@@ -9,6 +9,7 @@ Collects public market data → detects unusual price/volume/liquidity movements
 See `PRODUCT_VISION.md` for the north-star workflow.
 See `GITHUB_RESEARCH_NOTES.md` for open-source projects/concepts used as architecture inspiration.
 See `TRADER_COACH.md` for the teaching/learning prompt layer.
+See `SETUP_JOURNAL.md` for the local outcome-tracking loop.
 
 **Not a trading bot. No financial advice. No fund management.**
 
@@ -34,6 +35,7 @@ See `TRADER_COACH.md` for the teaching/learning prompt layer.
 | Classic Pattern Hints | Detects conservative TA hints: engulfing, hammer/shooting star, doji, double top/bottom, triangle compression, bull/bear flag watch |
 | Pro Trader Checklist | Compresses context into pass/warn/fail checks, readiness score, blockers and next checks — the “what a pro would check next” layer |
 | Trader Coach | Turns checklist + patterns + R/R + MTF into teaching prompts: why it matters, what to wait for, and what similar saved feedback suggests |
+| Setup Journal | Saves dashboard snapshots to SQLite, tracks outcomes, and feeds pattern/R/R/checklist statistics back into the Coach |
 
 ---
 
