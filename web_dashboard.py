@@ -27,6 +27,7 @@ from trader_assistant.coach import build_trader_coach, load_learning_stats
 from trader_assistant.journal import init_journal, save_setup, mark_outcome, learning_stats, recent_setups, DEFAULT_DB, save_council_review, recent_council_reviews
 from trader_assistant.ai_desk import build_ai_desk_notes
 from trader_assistant.council import run_council
+from trader_assistant.knowledge_graph import build_knowledge_graph
 
 DEFAULT_WATCHLIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'LINKUSDT', 'DOGEUSDT', 'ADAUSDT']
 DEFAULT_TIMEFRAMES = ('15m', '1h', '4h')
@@ -235,6 +236,7 @@ def render_dashboard_html():
       <div class="card section" style="margin-top:16px"><h3>Pro Trader Checklist</h3><div id="checklist"></div></div>
       <div class="card section" style="margin-top:16px"><h3>Trader Coach</h3><div id="coach"></div></div>
       <div class="card section" style="margin-top:16px"><h3>Setup Journal</h3><div id="journal"></div><div class="row"><button class="btn secondary" onclick="markLastOutcome('target')">Mark target</button><button class="btn secondary" onclick="markLastOutcome('failed')">Mark failed</button></div></div>
+      <div class="card section" style="margin-top:16px"><h3>Knowledge Graph</h3><div id="knowledgegraph"></div></div>
       <div class="card section" style="margin-top:16px"><h3>Multi-Timeframe</h3><div id="mtf" class="tfgrid"></div></div>
       <div class="sections">
         <div class="card section"><h3>Technical Context</h3><ul class="list" id="tech"></ul></div>
@@ -258,7 +260,8 @@ function exportJSON(){{if(!lastSnapshot)return; const blob=new Blob([JSON.string
 async function saveSetup(){{if(!lastSnapshot)return; const r=await fetch('/api/journal/save',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{snapshot:lastSnapshot,notes:'saved from dashboard'}})}}); const data=await r.json(); if(data.ok){{lastSetupId=data.setup_id; await loadJournalStats();}}}}
 async function saveCouncil(){{if(!lastSnapshot)return; const r=await fetch('/api/council/save',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{snapshot:lastSnapshot,council:lastSnapshot.council,notes:'ask council from dashboard'}})}}); const data=await r.json(); if(data.ok){{alert(`Council verdict saved #${{data.review_id}}`);}}}}
 async function markLastOutcome(outcome){{if(!lastSetupId){{alert('Save setup first');return;}} await fetch('/api/journal/outcome',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{setup_id:lastSetupId,outcome}})}}); await loadJournalStats();}}
-async function loadJournalStats(){{try{{const r=await fetch('/api/journal/stats'); const s=await r.json(); renderJournal(s);}}catch(e){{}}}}
+async function loadJournalStats(){{try{{const r=await fetch('/api/journal/stats'); const s=await r.json(); renderJournal(s); await loadKnowledgeGraph();}}catch(e){{}}}}
+async function loadKnowledgeGraph(){{try{{const r=await fetch('/api/graph?limit=100'); const g=await r.json(); renderKnowledgeGraph(g);}}catch(e){{}}}}
 function toggleAuto(){{if(autoTimer){{clearInterval(autoTimer);autoTimer=null}} if($('autorefresh').checked) autoTimer=setInterval(loadSnapshot,60000)}}
 function setLoading(){{ $('metrics').innerHTML='<div class="metric"><div class="l">Status</div><div class="v">Loading…</div></div>'; }}
 function showError(e){{$('metrics').innerHTML=`<div class="metric"><div class="l">Error</div><div class="v bad">Failed</div></div>`; $('tech').innerHTML=`<li class="error">${{e.stack||e}}</li>`}}
@@ -274,6 +277,7 @@ function renderCouncil(c){{if(!c)return; const chair=c.chair||{{}}; $('council')
 function renderChecklist(c){{if(!c) return; const cls=c.status==='clean'?'good':(c.status==='not_clean'?'bad':'warn'); $('checklist').innerHTML=`<div class="metric"><div class="l">Readiness</div><div class="v ${{cls}}">${{c.readiness_score}} / 100 — ${{c.status}}</div></div><p class="small">${{c.summary}}</p><ul class="list">${{c.checklist.map(x=>`<li><b>${{x.name}}</b>: <span class="${{x.status==='pass'?'good':(x.status==='fail'?'bad':'warn')}}">${{x.status}}</span> — ${{x.detail}}</li>`).join('')}}</ul><p class="small"><b>Next checks:</b> ${{(c.next_checks||[]).slice(0,3).join(' · ')}}</p>`;}}
 function renderCoach(c){{if(!c) return; $('coach').innerHTML=`<p><b>${{c.headline}}</b></p><p class="small">${{c.explain_like_pro}}</p><h4>Teaching points</h4><ul class="list">${{(c.teaching_points||[]).map(x=>`<li>${{x}}</li>`).join('')}}</ul><h4>What to wait for</h4><ul class="list">${{(c.what_to_wait_for||[]).map(x=>`<li>${{x}}</li>`).join('')}}</ul>${{(c.learning_notes||[]).length?`<h4>Learning memory</h4><ul class="list">${{c.learning_notes.map(x=>`<li>${{x}}</li>`).join('')}}</ul>`:''}}`;}}
 function renderJournal(s){{if(!s||s.error)return; const recent=(s.recent||[]).slice(0,5).map(x=>`<li>#${{x.id}} ${{x.symbol}} — ${{x.outcome}} — R/R ${{fmt(x.rr_ratio)}} — ${{x.checklist_status}}</li>`).join(''); $('journal').innerHTML=`<p><b>Total saved setups:</b> ${{s.total||0}}</p><p class="small">Save setups, mark outcomes, and the Coach will learn which patterns/R/R buckets deserve caution.</p><ul class="list">${{recent||'<li>No saved setups yet.</li>'}}</ul>`;}}
+function renderKnowledgeGraph(g){{if(!g||g.error)return; const kinds=Object.entries((g.summary||{{}}).node_kinds||{{}}).map(([k,v])=>`${{k}}:${{v}}`).join(' · '); const rels=(g.top_relations||[]).slice(0,8).map(r=>`<li>${{r.type}} — ${{r.count}}</li>`).join(''); $('knowledgegraph').innerHTML=`<p><b>${{(g.summary||{{}}).node_count||0}}</b> nodes · <b>${{(g.summary||{{}}).edge_count||0}}</b> edges</p><p class="small">${{kinds||'No graph memory yet. Save setups/council verdicts first.'}}</p><ul class="list">${{rels||'<li>No relations yet.</li>'}}</ul>`;}}
 function renderMTF(mtf){{if(!mtf||!mtf.frames) return; $('mtf').innerHTML=mtf.frames.map(f=>`<div class="tf"><b>${{f.interval}}</b><div>Trend: <span class="${{f.trend==='bearish'?'bad':(f.trend==='bullish'?'good':'warn')}}">${{f.trend}}</span></div><div>RSI: ${{fmt(f.rsi_14)}}</div><div>VWAP Δ: ${{fmt(f.price_vs_vwap_pct)}}%</div><div class="small">${{f.note||''}}</div></div>`).join('');}}
 function renderPatterns(patterns){{if(!patterns.length){{$('patterns').innerHTML='<li>No high-signal classic pattern detected. Wait for cleaner structure.</li>'; return;}} $('patterns').innerHTML=patterns.map(p=>`<li><b class="${{p.bias==='bearish'?'bad':(p.bias==='bullish'?'good':'warn')}}">${{p.name}}</b> — ${{p.bias}}, confidence ${{fmt(p.confidence)}}<br><span class="small">${{p.trader_note}}</span></li>`).join('');}}
 function drawChart(candles, levels){{const c=$('chart'), ctx=c.getContext('2d'), w=c.width,h=c.height; ctx.clearRect(0,0,w,h); ctx.fillStyle='#080814'; ctx.fillRect(0,0,w,h); if(!candles||!candles.length)return; const hi=Math.max(...candles.map(x=>x.high)), lo=Math.min(...candles.map(x=>x.low)), span=hi-lo||1, pad=28; const X=i=>pad+i*(w-pad*2)/Math.max(1,candles.length-1), Y=p=>pad+(hi-p)/span*(h-pad*2);
@@ -306,6 +310,9 @@ def handle_journal_api(method, path, qs=None, body=None, db_path=DEFAULT_DB):
             limit = int((qs or {}).get('limit', ['10'])[0]) if isinstance((qs or {}).get('limit'), list) else int((qs or {}).get('limit', 10))
             recent = recent_council_reviews(con, limit=limit)
             return {'total': len(recent), 'recent': recent}
+        if method == 'GET' and path == '/api/graph':
+            limit = int((qs or {}).get('limit', ['100'])[0]) if isinstance((qs or {}).get('limit'), list) else int((qs or {}).get('limit', 100))
+            return build_knowledge_graph(con, limit=limit)
         return {'error': 'not found'}
     finally:
         con.close()
@@ -343,6 +350,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if parsed.path == '/api/journal/stats':
                 return self._send(200, json.dumps(handle_journal_api('GET', parsed.path, qs), ensure_ascii=False))
             if parsed.path == '/api/council/recent':
+                return self._send(200, json.dumps(handle_journal_api('GET', parsed.path, qs), ensure_ascii=False))
+            if parsed.path == '/api/graph':
                 return self._send(200, json.dumps(handle_journal_api('GET', parsed.path, qs), ensure_ascii=False))
             return self._send(404, json.dumps({'error': 'not found'}))
         except Exception as e:
