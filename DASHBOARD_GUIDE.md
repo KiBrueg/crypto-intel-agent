@@ -26,6 +26,7 @@ http://127.0.0.1:8765
 - Watchlist buttons for major pairs.
 - Multi-timeframe context: 15m / 1h / 4h.
 - Pro Trader Checklist: readiness score, pass/warn/fail checks, blockers and next checks.
+- Trader Coach: teaching points, what to wait for, and optional learning memory from saved setup feedback.
 - Candlestick chart with detected levels.
 - EMA9 / EMA21 / VWAP / RSI14 / ATR14.
 - Entry-based risk/reward calculator.
