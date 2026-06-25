@@ -12,6 +12,7 @@ See `TRADER_COACH.md` for the teaching/learning prompt layer.
 See `SETUP_JOURNAL.md` for the local outcome-tracking loop.
 See `AI_TRADING_AGENT_TEMPLATES.md` and `templates/ai/` for reusable AI prompt/agent templates inspired by GitHub research.
 See `AI_DESK.md` for the role-based AI Desk synthesis layer.
+See `COUNCIL.md` for the multi-advisor council runner and Chair verdict.
 
 **Not a trading bot. No financial advice. No fund management.**
 
@@ -40,6 +41,7 @@ See `AI_DESK.md` for the role-based AI Desk synthesis layer.
 | Setup Journal | Saves dashboard snapshots to SQLite, tracks outcomes, and feeds pattern/R/R/checklist statistics back into the Coach |
 | AI Agent Templates | Markdown prompt templates for market brief, setup review, bull/bear debate, risk manager, trader coach and journal review |
 | AI Desk Notes | Six-pane role-based synthesis plus Five-Lens Idea Review: evidence for, evidence against, contrarian/outside view, risk/invalidation and balanced judge |
+| Council Runner | Deterministic multi-advisor council: Contrarian, First Principles, Expansionist, Outsider, Executor and Chair verdict |
 
 ---
 
