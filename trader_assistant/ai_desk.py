@@ -44,6 +44,49 @@ def _clean_text(items):
     return out
 
 
+def _build_five_lens_review(symbol, status, score, rr_value, rr_quality, bullish_pats, bearish_pats, counts, ob, pc, conflict):
+    """Council-style five-lens review to avoid yes-man and no-man prompting."""
+    support = []
+    if bullish_pats:
+        support.append(f"Bullish support: {', '.join(bullish_pats)} pattern hint(s).")
+    if counts.get('bullish', 0):
+        support.append(f"{counts.get('bullish')} timeframe(s) currently lean bullish.")
+    if 'bid wall' in ' '.join(ob.get('signals') or []):
+        support.append("Order book shows bid-side support hint.")
+    if not support:
+        support.append("No strong supportive evidence yet; idea needs confirmation.")
+
+    against = []
+    if bearish_pats:
+        against.append(f"Evidence against: {', '.join(bearish_pats)} bearish pattern hint(s).")
+    if counts.get('bearish', 0):
+        against.append(f"{counts.get('bearish')} timeframe(s) lean bearish.")
+    if rr_quality in ('weak', 'low', 'n/a') or (rr_value is not None and rr_value < 1.2):
+        against.append(f"Risk/reward argues against forcing the idea: {rr_value} / {rr_quality}.")
+    if not against:
+        against.append("No major opposing evidence surfaced, but absence of evidence is not confirmation.")
+
+    if conflict:
+        contrarian = "Contrarian view: mixed evidence can trap both sides; the best edge may be waiting for resolution instead of choosing early."
+    else:
+        contrarian = "Contrarian view: ask what would make the obvious thesis wrong before trusting it."
+
+    blockers = pc.get('blockers') or []
+    next_checks = pc.get('next_checks') or []
+    risk = blockers[0] if blockers else (next_checks[0] if next_checks else "Define invalidation and confirm R/R before considering the setup clean.")
+
+    judge = f"Balanced judge: {symbol} is {status} ({score}/100). "
+    judge += "Wait for cleaner confirmation." if status == 'not_clean' else "Keep watching for confirmation and invalidation."
+
+    return [
+        {'lens': 'Evidence For', 'advisor': 'Expansionist', 'stance': 'supportive', 'note': ' '.join(support)},
+        {'lens': 'Evidence Against', 'advisor': 'Contrarian', 'stance': 'skeptical', 'note': ' '.join(against)},
+        {'lens': 'Contrarian View', 'advisor': 'Outsider', 'stance': 'contrarian', 'note': contrarian},
+        {'lens': 'Risk/Invalidation', 'advisor': 'Executor', 'stance': 'risk-first', 'note': risk},
+        {'lens': 'Balanced Judge', 'advisor': 'Chair', 'stance': status, 'note': judge},
+    ]
+
+
 def build_ai_desk_notes(snapshot):
     """Create deterministic role-based AI desk notes from a dashboard snapshot.
 
@@ -157,4 +200,5 @@ def build_ai_desk_notes(snapshot):
         'readiness_score': score,
         'summary': f"AI Desk synthesis for {symbol}: {status} ({score}/100).",
         'cards': cards,
+        'five_lens_review': _build_five_lens_review(symbol, status, score, rr_value, rr_quality, bullish_pats, bearish_pats, counts, ob, pc, conflict),
     }

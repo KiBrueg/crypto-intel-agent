@@ -39,7 +39,7 @@ See `AI_DESK.md` for the role-based AI Desk synthesis layer.
 | Trader Coach | Turns checklist + patterns + R/R + MTF into teaching prompts: why it matters, what to wait for, and what similar saved feedback suggests |
 | Setup Journal | Saves dashboard snapshots to SQLite, tracks outcomes, and feeds pattern/R/R/checklist statistics back into the Coach |
 | AI Agent Templates | Markdown prompt templates for market brief, setup review, bull/bear debate, risk manager, trader coach and journal review |
-| AI Desk Notes | Six-pane role-based synthesis: Market Brief, Technical Analyst, Bull Case, Bear Case, Risk Manager and Trader Coach, grounded in the current dashboard snapshot |
+| AI Desk Notes | Six-pane role-based synthesis plus Five-Lens Idea Review: evidence for, evidence against, contrarian/outside view, risk/invalidation and balanced judge |
 
 ---
 

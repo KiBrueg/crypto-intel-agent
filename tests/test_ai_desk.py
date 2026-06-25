@@ -49,13 +49,27 @@ def test_ai_desk_notes_surface_conflicts_and_wait_conditions():
     assert any('R/R' in item or 'risk/reward' in item.lower() for item in risk['key_points'])
 
 
+def test_five_lens_review_prevents_yes_man_and_no_man_behavior():
+    notes = build_ai_desk_notes(sample_snapshot())
+    review = notes['five_lens_review']
+    labels = [lens['lens'] for lens in review]
+    assert labels == ['Evidence For', 'Evidence Against', 'Contrarian View', 'Risk/Invalidation', 'Balanced Judge']
+    text = str(review).lower()
+    assert 'support' in text or 'bullish' in text
+    assert 'against' in text or 'bearish' in text
+    assert 'contrarian' in text
+    assert 'not_clean' in text or 'wait' in text
+
+
 def test_dashboard_contains_ai_desk_section():
     html = render_dashboard_html()
     assert 'AI Desk Notes' in html
+    assert 'Five-Lens Idea Review' in html
 
 
 if __name__ == '__main__':
     test_ai_desk_notes_create_role_cards_without_trade_commands()
     test_ai_desk_notes_surface_conflicts_and_wait_conditions()
+    test_five_lens_review_prevents_yes_man_and_no_man_behavior()
     test_dashboard_contains_ai_desk_section()
     print('OK ai desk tests passed')

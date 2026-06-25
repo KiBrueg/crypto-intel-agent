@@ -26,6 +26,18 @@ coach teaches what to notice next
 
 The AI Desk follows that pattern without automatic execution or direct trade commands.
 
+## Five-Lens Idea Review
+
+Inspired by the "ask the council" pattern from the user's video transcript: one model can become a yes-man or a no-man depending on how the question is asked. To reduce that bias, each setup also gets five explicit lenses:
+
+1. **Evidence For / Expansionist** — what upside/supportive evidence might be missed?
+2. **Evidence Against / Contrarian** — what could kill the idea?
+3. **Contrarian View / Outsider** — what obvious miss would an outsider catch without our context?
+4. **Risk/Invalidation / Executor** — what has to be true tomorrow morning, and what invalidates it?
+5. **Balanced Judge / Chair** — final synthesis without blindly agreeing or rejecting.
+
+This does not produce a trade command. It produces a safer decision-support review.
+
 ## Current implementation
 
 File:
