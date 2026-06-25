@@ -1,0 +1,16 @@
+{
+  "default_symbol": "BTCUSDT",
+  "default_interval": "1h",
+  "watchlist": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "BNBUSDT",
+    "XRPUSDT",
+    "LINKUSDT",
+    "DOGEUSDT",
+    "ADAUSDT",
+    "AVAXUSDT",
+    "INJUSDT"
+  ]
+}

@@ -13,6 +13,7 @@ import json
 import traceback
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from trader_assistant.binance_public import fetch_klines, fetch_depth
@@ -23,6 +24,43 @@ from trader_assistant.fear_greed import fetch_fear_greed_index, evaluate_fear_gr
 
 DEFAULT_WATCHLIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'LINKUSDT', 'DOGEUSDT', 'ADAUSDT']
 DEFAULT_TIMEFRAMES = ('15m', '1h', '4h')
+CONFIG_PATH = Path(__file__).with_name('dashboard_config.json')
+
+
+def _normalize_symbol(value):
+    return str(value or '').strip().upper().replace('/', '')
+
+
+def load_dashboard_config(path=CONFIG_PATH):
+    config = {'watchlist': DEFAULT_WATCHLIST[:], 'default_symbol': DEFAULT_WATCHLIST[0], 'default_interval': '1h'}
+    p = Path(path)
+    if p.exists():
+        try:
+            raw = json.loads(p.read_text(encoding='utf-8'))
+            if isinstance(raw.get('watchlist'), list):
+                watchlist = [_normalize_symbol(x) for x in raw['watchlist'] if _normalize_symbol(x)]
+                if watchlist:
+                    config['watchlist'] = watchlist
+                    if not raw.get('default_symbol'):
+                        config['default_symbol'] = watchlist[0]
+            if raw.get('default_symbol'):
+                config['default_symbol'] = _normalize_symbol(raw['default_symbol'])
+            if raw.get('default_interval'):
+                config['default_interval'] = str(raw['default_interval'])
+        except Exception as exc:
+            config['config_warning'] = f'Could not load {p}: {exc}'
+    if config['default_symbol'] not in config['watchlist']:
+        config['watchlist'].insert(0, config['default_symbol'])
+    return config
+
+
+def build_watchlist_payload(path=CONFIG_PATH):
+    cfg = load_dashboard_config(path)
+    return {'watchlist': cfg['watchlist'], 'default_symbol': cfg['default_symbol'], 'default_interval': cfg['default_interval']}
+
+
+def get_watchlist():
+    return load_dashboard_config()['watchlist']
 
 
 def _to_float(value, default=None):
@@ -110,7 +148,7 @@ def build_snapshot_payload(
         'symbol': symbol,
         'interval': interval,
         'generated_at': datetime.now(timezone.utc).isoformat(),
-        'watchlist': DEFAULT_WATCHLIST,
+        'watchlist': get_watchlist(),
         'analysis': {k: v for k, v in analysis.items() if k != 'candles'},
         'candles': analysis.get('candles', [])[-120:],
         'order_book': order_book,
@@ -120,7 +158,8 @@ def build_snapshot_payload(
 
 
 def render_dashboard_html():
-    watch_buttons = ''.join(f'<button class="chip" onclick="setSymbol(\'{s}\')">{s}</button>' for s in DEFAULT_WATCHLIST)
+    config = load_dashboard_config()
+    watch_buttons = ''.join(f'<button class="chip" onclick="setSymbol(\'{s}\')">{s}</button>' for s in config['watchlist'])
     return f'''<!doctype html>
 <html lang="en">
 <head>
@@ -140,7 +179,7 @@ def render_dashboard_html():
     <div class="card controls">
       <h2>Controls</h2>
       <label>Watchlist</label><div>{watch_buttons}</div>
-      <label>Symbol</label><input id="symbol" value="BTCUSDT">
+      <label>Symbol</label><input id="symbol" value="{config['default_symbol']}">
       <div class="row"><div><label>Interval</label><select id="interval"><option>15m</option><option selected>1h</option><option>4h</option><option>1d</option></select></div><div><label>Side</label><select id="side"><option>long</option><option>short</option></select></div></div>
       <label>Entry</label><input id="entry" type="number" step="any" placeholder="optional, default=current price">
       <div class="row"><div><label>Stop</label><input id="stop" type="number" step="any" placeholder="auto"></div><div><label>Target</label><input id="target" type="number" step="any" placeholder="auto"></div></div>
@@ -218,7 +257,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 symbol = (qs.get('symbol') or ['BTCUSDT'])[0].upper()
                 return self._send(200, json.dumps(build_multi_timeframe_payload(symbol), ensure_ascii=False))
             if parsed.path == '/api/watchlist':
-                return self._send(200, json.dumps({'watchlist': DEFAULT_WATCHLIST}, ensure_ascii=False))
+                return self._send(200, json.dumps(build_watchlist_payload(), ensure_ascii=False))
             return self._send(404, json.dumps({'error': 'not found'}))
         except Exception as e:
             return self._send(500, json.dumps({'error': str(e), 'trace': traceback.format_exc()}))

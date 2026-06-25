@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).parents[1]))
 from web_dashboard import (
     render_dashboard_html, build_snapshot_payload, build_risk_reward_payload,
     classify_rr_quality, build_multi_timeframe_payload, DEFAULT_WATCHLIST,
+    load_dashboard_config, build_watchlist_payload,
 )
 
 
@@ -54,6 +55,21 @@ def test_default_watchlist_has_major_pairs():
     assert 'SOLUSDT' in DEFAULT_WATCHLIST
 
 
+def test_dashboard_config_allows_custom_watchlist(tmp_path):
+    cfg = tmp_path / 'dashboard_config.json'
+    cfg.write_text('{"watchlist": ["btcusdt", "ethusdt", "solusdt"], "default_symbol": "ethusdt"}')
+    loaded = load_dashboard_config(cfg)
+    assert loaded['watchlist'] == ['BTCUSDT', 'ETHUSDT', 'SOLUSDT']
+    assert loaded['default_symbol'] == 'ETHUSDT'
+
+
+def test_watchlist_payload_uses_configured_pairs(tmp_path):
+    cfg = tmp_path / 'dashboard_config.json'
+    cfg.write_text('{"watchlist": ["linkusdt", "avaxusdt"]}')
+    payload = build_watchlist_payload(cfg)
+    assert payload['watchlist'] == ['LINKUSDT', 'AVAXUSDT']
+
+
 def test_rr_quality_classification():
     assert classify_rr_quality(None)['label'] == 'n/a'
     assert classify_rr_quality(0.8)['label'] == 'weak'
@@ -95,6 +111,10 @@ def test_risk_reward_payload_uses_entry_side_stop_target():
 if __name__ == '__main__':
     test_dashboard_html_contains_core_controls_and_sections()
     test_default_watchlist_has_major_pairs()
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        test_dashboard_config_allows_custom_watchlist(Path(d))
+        test_watchlist_payload_uses_configured_pairs(Path(d))
     test_rr_quality_classification()
     test_snapshot_payload_shape_from_injected_fetchers()
     test_multi_timeframe_payload_returns_each_requested_interval()

@@ -30,6 +30,16 @@ Collects public market data → detects unusual price/volume/liquidity movements
 
 ## Quick start
 
+Windows browser dashboard (recommended):
+
+```bat
+launch_dashboard_windows.bat
+```
+
+Then open `http://127.0.0.1:8765`. See `DASHBOARD_GUIDE.md` for dashboard usage and watchlist configuration.
+
+CLI tools:
+
 ```bash
 # No external packages required — stdlib only
 python crypto_intel_agent_v2.py --per-page 40
