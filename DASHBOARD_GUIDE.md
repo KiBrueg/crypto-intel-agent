@@ -23,6 +23,7 @@ http://127.0.0.1:8765
 
 ## What the dashboard shows
 
+- Warm premium UI: Stripe-level product trust with Craft/Emil-style ivory, sand, espresso and clay palette; no blue accent dependency.
 - Watchlist buttons for major pairs.
 - Multi-timeframe context: 15m / 1h / 4h.
 - Pro Trader Checklist: readiness score, pass/warn/fail checks, blockers and next checks.
