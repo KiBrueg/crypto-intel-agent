@@ -14,6 +14,7 @@ See `AI_TRADING_AGENT_TEMPLATES.md` and `templates/ai/` for reusable AI prompt/a
 See `AI_DESK.md` for the role-based AI Desk synthesis layer.
 See `COUNCIL.md` for the multi-advisor council runner and Chair verdict.
 See `KNOWLEDGE_GRAPH.md` for the Graphify-style memory graph prototype.
+See `GRAPH_CONTEXT.md` for compact graph context that prevents LLM token overload.
 See `SIMULATION_LAB.md` for the historical simulation and calibration loop.
 See `MACRO_NEWS_IMPACT.md` for the RSS/macro news impact indicator.
 See `SMC.md` for the Smart Money Concepts structure/liquidity layer.
@@ -48,6 +49,7 @@ See `LEARNING_AUTOPILOT.md` for the automatic forecast verification loop.
 | AI Desk Notes | Six-pane role-based synthesis plus Five-Lens Idea Review: evidence for, evidence against, contrarian/outside view, risk/invalidation and balanced judge |
 | Council Runner | Deterministic multi-advisor council: Contrarian, First Principles, Expansionist, Outsider, Executor and Chair verdict; dashboard can save council verdicts to SQLite |
 | Knowledge Graph | Graphify-style nodes/edges over setups, outcomes, patterns, council reviews, advisors, verdicts and blockers |
+| Compact Graph Context | Token-budgeted Graphify summary for LLM reasoning: current features, similar outcomes, compact stats and calibration hints |
 | Simulation Lab | Rolling historical simulations compare predicted setup status with target/stop/timeout outcomes for calibration |
 | Macro/RSS News Impact | RSS headline classifier for Fed/rates/inflation/geopolitics/oil/regulation news with bullish/base/bearish scenarios |
 | Smart Money Concepts | Liquidity sweeps, fair value gaps, break of structure and order-block candidates as extra structure context |
