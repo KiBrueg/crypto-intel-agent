@@ -62,6 +62,14 @@ when R/R is weak, did stop/timeout dominate?
 
 ## Calibration examples
 
+The report keeps multiple scenarios instead of one brittle recommendation:
+
+```text
+bullish — assume risk-on/liquidity regime
+base    — assume mixed/choppy regime
+bearish — assume risk-off/false-break regime
+```
+
 If clean setups underperform:
 
 ```text

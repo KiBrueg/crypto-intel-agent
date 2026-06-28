@@ -117,4 +117,27 @@ def calibrate_simulations(simulations):
             report['recommendations'].append('Some not_clean setups still reach target; inspect whether checklist is too strict for this regime.')
     if not report['recommendations']:
         report['recommendations'].append('Keep collecting simulations; no strong calibration change yet.')
+    clean = report['by_predicted_status'].get('clean', {})
+    watch = report['by_predicted_status'].get('watch', {})
+    not_clean = report['by_predicted_status'].get('not_clean', {})
+    clean_target = clean.get('target_rate', 0)
+    clean_stop = clean.get('stop_rate', 0)
+    not_clean_target = not_clean.get('target_rate', 0)
+    report['scenarios'] = {
+        'bullish': {
+            'thesis': 'Assume market regime rewards risk-on setups and bullish continuation.',
+            'calibration_action': 'Lower friction only if clean/watch target rates stay strong; allow watch setups to upgrade after confirmation.',
+            'trigger': f"clean_target_rate={clean_target}",
+        },
+        'base': {
+            'thesis': 'Assume mixed regime; only act on setups where simulation and checklist agree.',
+            'calibration_action': 'Keep current thresholds, collect more samples, and prefer R/R + MTF confirmation over isolated pattern signals.',
+            'trigger': f"watch_samples={watch.get('total', 0)}",
+        },
+        'bearish': {
+            'thesis': 'Assume risk-off/choppy regime where false breakouts and stops dominate.',
+            'calibration_action': 'Tighten checklist, raise readiness threshold, demand stronger R/R, and downgrade weak clean labels.' if clean_stop > 0.35 or clean_target < 0.45 else 'Keep bearish guardrails active until target rate remains high across more samples.',
+            'trigger': f"clean_stop_rate={clean_stop}; not_clean_target_rate={not_clean_target}",
+        },
+    }
     return report

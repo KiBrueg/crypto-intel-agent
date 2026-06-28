@@ -33,6 +33,7 @@ http://127.0.0.1:8765
 - Council Verdict: multi-advisor council with Contrarian, First Principles, Expansionist, Outsider, Executor and Chair summary.
 - Knowledge Graph: Graphify-style preview of nodes/edges linking setups, patterns, outcomes, council reviews, advisors and blockers.
 - Simulation Lab: rolling historical simulations that score target/stop/timeout and suggest calibration changes.
+- Macro/RSS News Impact: headline-based indicator for Fed/rates/inflation/geopolitics/oil/regulation shocks with bullish/base/bearish scenarios.
 - Candlestick chart with detected levels.
 - EMA9 / EMA21 / VWAP / RSI14 / ATR14.
 - Entry-based risk/reward calculator.
