@@ -31,7 +31,7 @@ from trader_assistant.knowledge_graph import build_knowledge_graph
 from trader_assistant.simulation import run_rolling_simulations, calibrate_simulations
 from trader_assistant.market_news import fetch_rss_items, score_news_items
 from trader_assistant.smc import detect_smc_context
-from trader_assistant.learning_autopilot import create_prediction_from_snapshot, save_prediction, verify_open_predictions, prediction_stats, recent_predictions
+from trader_assistant.learning_autopilot import create_prediction_from_snapshot, save_prediction, verify_open_predictions, prediction_stats, recent_predictions, run_learning_cycle
 
 DEFAULT_WATCHLIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'LINKUSDT', 'DOGEUSDT', 'ADAUSDT']
 DEFAULT_TIMEFRAMES = ('15m', '1h', '4h')
@@ -386,14 +386,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 side = (qs.get('side') or ['long'])[0]
                 con = init_journal(DEFAULT_DB)
                 try:
-                    snapshot = build_snapshot_payload(symbol=symbol, interval=interval, side=side)
-                    pred_id = save_prediction(con, create_prediction_from_snapshot(snapshot, horizon_bars=int((qs.get('horizon') or ['12'])[0])))
-                    verify = verify_open_predictions(con, fetch_klines)
-                    stats = prediction_stats(con)
-                    stats['prediction_id'] = pred_id
-                    stats['verify_result'] = verify
-                    stats['recent'] = recent_predictions(con, limit=8)
-                    return self._send(200, json.dumps(stats, ensure_ascii=False))
+                    return self._send(200, json.dumps(run_learning_cycle(
+                        con, symbol=symbol, interval=interval, side=side,
+                        snapshot_builder=lambda symbol, interval, side: build_snapshot_payload(symbol=symbol, interval=interval, side=side),
+                        klines_fetcher=fetch_klines,
+                        horizon_bars=int((qs.get('horizon') or ['12'])[0]),
+                    ), ensure_ascii=False))
                 finally:
                     con.close()
             if parsed.path == '/api/learning/stats':

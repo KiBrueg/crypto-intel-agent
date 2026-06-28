@@ -153,3 +153,15 @@ def prediction_stats(con):
         'by_predicted_status': {k: dict(v) for k, v in statuses.items()},
         'predicted_directions': dict(directions),
     }
+
+
+def run_learning_cycle(con, symbol, interval, side, snapshot_builder, klines_fetcher, horizon_bars=12):
+    """Save a fresh forecast, verify old forecasts, and return updated stats."""
+    snapshot = snapshot_builder(symbol=symbol, interval=interval, side=side)
+    pred_id = save_prediction(con, create_prediction_from_snapshot(snapshot, horizon_bars=int(horizon_bars)))
+    verify = verify_open_predictions(con, klines_fetcher)
+    stats = prediction_stats(con)
+    stats['prediction_id'] = pred_id
+    stats['verify_result'] = verify
+    stats['recent'] = recent_predictions(con, limit=8)
+    return stats

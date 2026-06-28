@@ -46,6 +46,27 @@ GET /api/learning/run?symbol=BTCUSDT&interval=1h&side=long
 GET /api/learning/stats
 ```
 
+## Automatic background mode
+
+Dashboard/launcher automation:
+
+```text
+Crypto Intel Agent.bat now starts the dashboard and also starts Auto Learner in the background.
+```
+
+The daemon:
+
+```text
+learning_daemon.py --symbols BTCUSDT,ETHUSDT,SOLUSDT --interval 15m --horizon 4 --sleep 900
+```
+
+It runs every 15 minutes and writes:
+
+```text
+data/learning_autopilot_heartbeat.json
+data/learning_autopilot.log
+```
+
 ## What one learning cycle does
 
 ```text

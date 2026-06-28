@@ -13,4 +13,5 @@ venv/
 # Local runtime data
 *.sqlite3
 *.db
+data/
 .DS_Store

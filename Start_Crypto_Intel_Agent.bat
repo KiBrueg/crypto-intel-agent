@@ -10,6 +10,11 @@ cd /d "%PROJECT_DIR%" || (
   exit /b 1
 )
 
+if not exist "%PROJECT_DIR%\data\learning_autopilot.lock" (
+  echo Starting Auto Learner in background...
+  start "Crypto Intel Auto Learner" /min cmd /k "cd /d "%PROJECT_DIR%" && python learning_daemon.py --symbols BTCUSDT,ETHUSDT,SOLUSDT --interval 15m --horizon 4 --sleep 900"
+)
+
 netstat -ano | findstr /R /C:":%PORT% .*LISTENING" >nul 2>nul
 if %errorlevel%==0 (
   echo Crypto Intel Agent is already running on %URL%
