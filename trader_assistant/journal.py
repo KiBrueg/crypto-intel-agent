@@ -65,6 +65,30 @@ def init_journal(path=DEFAULT_DB):
             notes text not null default ''
         )
     ''')
+    con.execute('''
+        create table if not exists predictions (
+            id integer primary key autoincrement,
+            created_at text not null,
+            verified_at text,
+            symbol text not null,
+            interval text not null,
+            start_ts integer,
+            horizon_bars integer not null,
+            predicted_direction text not null,
+            predicted_status text not null,
+            entry real,
+            stop real,
+            target real,
+            readiness_score integer,
+            council_verdict text,
+            smc_bias text,
+            feature_json text not null,
+            snapshot_json text not null,
+            verified_outcome text,
+            correct_direction integer,
+            result_json text
+        )
+    ''')
     con.commit()
     return con
 

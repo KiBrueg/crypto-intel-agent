@@ -31,6 +31,7 @@ from trader_assistant.knowledge_graph import build_knowledge_graph
 from trader_assistant.simulation import run_rolling_simulations, calibrate_simulations
 from trader_assistant.market_news import fetch_rss_items, score_news_items
 from trader_assistant.smc import detect_smc_context
+from trader_assistant.learning_autopilot import create_prediction_from_snapshot, save_prediction, verify_open_predictions, prediction_stats, recent_predictions
 
 DEFAULT_WATCHLIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'LINKUSDT', 'DOGEUSDT', 'ADAUSDT']
 DEFAULT_TIMEFRAMES = ('15m', '1h', '4h')
@@ -244,6 +245,7 @@ def render_dashboard_html():
       <div class="card section" style="margin-top:16px"><h3>Setup Journal</h3><div id="journal"></div><div class="row"><button class="btn secondary" onclick="markLastOutcome('target')">Mark target</button><button class="btn secondary" onclick="markLastOutcome('failed')">Mark failed</button></div></div>
       <div class="card section" style="margin-top:16px"><h3>Knowledge Graph</h3><div id="knowledgegraph"></div></div>
       <div class="card section" style="margin-top:16px"><h3>Simulation Lab</h3><div id="simulationlab"></div><button class="btn secondary" onclick="runSimulationLab()">Run historical simulation</button></div>
+      <div class="card section" style="margin-top:16px"><h3>Learning Autopilot</h3><div id="learningautopilot"></div><button class="btn secondary" onclick="runLearningAutopilot()">Run learning cycle</button></div>
       <div class="card section" style="margin-top:16px"><h3>Macro/RSS News Impact</h3><div id="newsimpact"></div><button class="btn secondary" onclick="scanNewsImpact()">Scan RSS macro/news</button></div>
       <div class="card section" style="margin-top:16px"><h3>Smart Money Concepts</h3><div id="smc"></div></div>
       <div class="card section" style="margin-top:16px"><h3>Multi-Timeframe</h3><div id="mtf" class="tfgrid"></div></div>
@@ -272,6 +274,7 @@ async function markLastOutcome(outcome){{if(!lastSetupId){{alert('Save setup fir
 async function loadJournalStats(){{try{{const r=await fetch('/api/journal/stats'); const s=await r.json(); renderJournal(s); await loadKnowledgeGraph();}}catch(e){{}}}}
 async function loadKnowledgeGraph(){{try{{const r=await fetch('/api/graph?limit=100'); const g=await r.json(); renderKnowledgeGraph(g);}}catch(e){{}}}}
 async function runSimulationLab(){{try{{$('simulationlab').innerHTML='<p class="small">Running historical simulation…</p>'; const r=await fetch('/api/simulation?symbol='+encodeURIComponent($('symbol').value)+'&interval='+encodeURIComponent($('interval').value)+'&side='+encodeURIComponent($('side').value)); const s=await r.json(); renderSimulationLab(s);}}catch(e){{$('simulationlab').innerHTML='<p class="error">'+(e.stack||e)+'</p>';}}}}
+async function runLearningAutopilot(){{try{{$('learningautopilot').innerHTML='<p class="small">Running learning cycle: saving current forecast and checking older forecasts…</p>'; const r=await fetch('/api/learning/run?symbol='+encodeURIComponent($('symbol').value)+'&interval='+encodeURIComponent($('interval').value)+'&side='+encodeURIComponent($('side').value)); const s=await r.json(); renderLearningAutopilot(s);}}catch(e){{$('learningautopilot').innerHTML='<p class="error">'+(e.stack||e)+'</p>';}}}}
 async function scanNewsImpact(){{try{{$('newsimpact').innerHTML='<p class="small">Scanning RSS macro/news…</p>'; const r=await fetch('/api/news-impact?limit_per_feed=6'); const n=await r.json(); renderNewsImpact(n);}}catch(e){{$('newsimpact').innerHTML='<p class="error">'+(e.stack||e)+'</p>';}}}}
 function toggleAuto(){{if(autoTimer){{clearInterval(autoTimer);autoTimer=null}} if($('autorefresh').checked) autoTimer=setInterval(loadSnapshot,60000)}}
 function setLoading(){{ $('metrics').innerHTML='<div class="metric"><div class="l">Status</div><div class="v">Loading…</div></div>'; }}
@@ -289,9 +292,11 @@ function renderChecklist(c){{if(!c) return; const cls=c.status==='clean'?'good':
 function renderCoach(c){{if(!c) return; $('coach').innerHTML=`<p><b>${{c.headline}}</b></p><p class="small">${{c.explain_like_pro}}</p><h4>Teaching points</h4><ul class="list">${{(c.teaching_points||[]).map(x=>`<li>${{x}}</li>`).join('')}}</ul><h4>What to wait for</h4><ul class="list">${{(c.what_to_wait_for||[]).map(x=>`<li>${{x}}</li>`).join('')}}</ul>${{(c.learning_notes||[]).length?`<h4>Learning memory</h4><ul class="list">${{c.learning_notes.map(x=>`<li>${{x}}</li>`).join('')}}</ul>`:''}}`;}}
 function renderJournal(s){{if(!s||s.error)return; const recent=(s.recent||[]).slice(0,5).map(x=>`<li>#${{x.id}} ${{x.symbol}} — ${{x.outcome}} — R/R ${{fmt(x.rr_ratio)}} — ${{x.checklist_status}}</li>`).join(''); $('journal').innerHTML=`<p><b>Total saved setups:</b> ${{s.total||0}}</p><p class="small">Save setups, mark outcomes, and the Coach will learn which patterns/R/R buckets deserve caution.</p><ul class="list">${{recent||'<li>No saved setups yet.</li>'}}</ul>`;}}
 function renderKnowledgeGraph(g){{if(!g||g.error)return; const kinds=Object.entries((g.summary||{{}}).node_kinds||{{}}).map(([k,v])=>`${{k}}:${{v}}`).join(' · '); const rels=(g.top_relations||[]).slice(0,8).map(r=>`<li>${{r.type}} — ${{r.count}}</li>`).join(''); $('knowledgegraph').innerHTML=`<p><b>${{(g.summary||{{}}).node_count||0}}</b> nodes · <b>${{(g.summary||{{}}).edge_count||0}}</b> edges</p><p class="small">${{kinds||'No graph memory yet. Save setups/council verdicts first.'}}</p><ul class="list">${{rels||'<li>No relations yet.</li>'}}</ul>`;}}
-function renderSimulationLab(s){{if(!s||s.error){{$('simulationlab').innerHTML=`<p class="error">${{s&&s.error?s.error:'Simulation failed'}}</p>`;return;}} const rows=Object.entries(s.by_predicted_status||{{}}).map(([k,v])=>`<li><b>${{k}}</b>: total ${{v.total}}, target ${{Math.round((v.target_rate||0)*100)}}%, stopped ${{Math.round((v.stop_rate||0)*100)}}%</li>`).join(''); const scenarios=Object.entries(s.scenarios||{{}}).map(([k,v])=>`<li><b>${{k}}</b>: ${{v.calibration_action}}</li>`).join(''); $('simulationlab').innerHTML=`<p><b>${{s.symbol}}</b> ${{s.interval}} · simulations: <b>${{s.total}}</b></p><ul class="list">${{rows||'<li>No simulation rows.</li>'}}</ul><h4>Calibration scenarios</h4><ul class="list">${{scenarios||'<li>No scenarios yet.</li>'}}</ul><h4>Calibration</h4><ul class="list">${{(s.recommendations||[]).map(x=>`<li>${{x}}</li>`).join('')}}</ul>`;}}
+function renderSimulationLab(s){{if(!s||s.error){{$('simulationlab').innerHTML=`<p class="error">${{s&&s.error?s.error:'Simulation failed'}}</p>`;return;}} const rows=Object.entries(s.by_predicted_status||{{}}).map(([k,v])=>`<li><b>${{k}}</b>: total ${{v.total}}, target ${{Math.round((v.target_rate||0)*100)}}%, stopped ${{Math.round((v.stop_rate||0)*100)}}%</li>`).join(''); const scenarios=Object.entries(s.scenarios||{{}}).map(([k,v])=>`<li><b>${{k}}</b>: ${{v.calibration_action}}</li>`).join(''); $('simulationlab').innerHTML=`<p><b>${{s.symbol}}</b> ${{s.interval}} · simulations: <b>${{s.total}}</b></p><ul class="list">${{rows||'<li>No simulation rows.</li>'}}</ul><h4>Calibration scenarios</h4><ul class="list">${{scenarios||'<li>No scenarios yet.'}}</ul><h4>Calibration</h4><ul class="list">${{(s.recommendations||[]).map(x=>`<li>${{x}}</li>`).join('')}}</ul>`;}}
+function renderLearningAutopilot(s){{if(!s||s.error){{$('learningautopilot').innerHTML=`<p class="error">${{s&&s.error?s.error:'Learning cycle failed'}}</p>`;return;}} const acc=s.direction_accuracy==null?'n/a':Math.round(s.direction_accuracy*100)+'%'; const recent=(s.recent||[]).slice(0,5).map(p=>`<li>#${{p.id}} ${{p.symbol}} ${{p.predicted_direction}}/${{p.predicted_status}} → ${{p.verified_outcome||'pending'}}</li>`).join(''); $('learningautopilot').innerHTML=`<p><b>Saved forecast #${{s.prediction_id||'n/a'}}</b>. Verified now: ${{(s.verify_result||{{}}).verified||0}}, pending: ${{s.pending}}.</p><p>Direction accuracy: <b>${{acc}}</b> · total forecasts: <b>${{s.total}}</b> · verified: <b>${{s.verified}}</b></p><ul class="list">${{recent||'<li>No forecasts yet.</li>'}}</ul>`;}}
 function renderNewsImpact(n){{if(!n||n.error){{$('newsimpact').innerHTML=`<p class="error">${{n&&n.error?n.error:'News scan failed'}}</p>`;return;}} const cls=n.net_bias==='bullish'?'good':(n.net_bias==='bearish'?'bad':'warn'); const items=(n.scored_items||[]).filter(x=>x.impact_score!==0).slice(0,6).map(x=>`<li><b class="${{x.bias==='bullish'?'good':(x.bias==='bearish'?'bad':'warn')}}">${{x.bias}}</b> · ${{x.title}} <span class="small">(${{(x.drivers||[]).join(', ')}})</span></li>`).join(''); const scenarios=Object.entries(n.scenarios||{{}}).map(([k,v])=>`<li><b>${{k}}</b>: ${{v.market_effect}}</li>`).join(''); $('newsimpact').innerHTML=`<p>Net news bias: <b class="${{cls}}">${{n.net_bias}}</b> · score <b>${{n.net_score}}</b> · Fear/Greed pressure: <b>${{n.fear_greed_pressure}}</b></p><h4>Scenario impact</h4><ul class="list">${{scenarios}}</ul><h4>High-signal headlines</h4><ul class="list">${{items||'<li>No high-signal macro/news items in scanned feeds.</li>'}}</ul>`;}}
 function renderMTF(mtf){{if(!mtf||!mtf.frames) return; $('mtf').innerHTML=mtf.frames.map(f=>`<div class="tf"><b>${{f.interval}}</b><div>Trend: <span class="${{f.trend==='bearish'?'bad':(f.trend==='bullish'?'good':'warn')}}">${{f.trend}}</span></div><div>RSI: ${{fmt(f.rsi_14)}}</div><div>VWAP Δ: ${{fmt(f.price_vs_vwap_pct)}}%</div><div class="small">${{f.note||''}}</div></div>`).join('');}}
+
 function renderSMC(smc){{if(!smc) return; const cls=smc.bias==='bullish'?'good':(smc.bias==='bearish'?'bad':'warn'); const zones=(smc.zones||[]).slice(0,8).map(z=>`<li><b class="${{z.direction==='bullish'?'good':(z.direction==='bearish'?'bad':'warn')}}">${{z.direction}}</b> ${{z.type}} — ${{fmt(z.low)}} / ${{fmt(z.high)}} <span class="small">${{z.note||''}}</span></li>`).join(''); $('smc').innerHTML=`<p><b class="${{cls}}">${{smc.bias}}</b> · score ${{smc.score}} · ${{smc.summary}}</p><ul class="list">${{zones||'<li>No high-signal SMC zone detected yet.</li>'}}</ul>`;}}
 function renderPatterns(patterns){{if(!patterns.length){{$('patterns').innerHTML='<li>No high-signal classic pattern detected. Wait for cleaner structure.</li>'; return;}} $('patterns').innerHTML=patterns.map(p=>`<li><b class="${{p.bias==='bearish'?'bad':(p.bias==='bullish'?'good':'warn')}}">${{p.name}}</b> — ${{p.bias}}, confidence ${{fmt(p.confidence)}}<br><span class="small">${{p.trader_note}}</span></li>`).join('');}}
 function drawChart(candles, levels){{const c=$('chart'), ctx=c.getContext('2d'), w=c.width,h=c.height; ctx.clearRect(0,0,w,h); ctx.fillStyle='#080814'; ctx.fillRect(0,0,w,h); if(!candles||!candles.length)return; const hi=Math.max(...candles.map(x=>x.high)), lo=Math.min(...candles.map(x=>x.low)), span=hi-lo||1, pad=28; const X=i=>pad+i*(w-pad*2)/Math.max(1,candles.length-1), Y=p=>pad+(hi-p)/span*(h-pad*2);
@@ -375,6 +380,30 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if parsed.path == '/api/news-impact':
                 items = fetch_rss_items(limit_per_feed=int((qs.get('limit_per_feed') or ['6'])[0]))
                 return self._send(200, json.dumps(score_news_items(items), ensure_ascii=False))
+            if parsed.path == '/api/learning/run':
+                symbol = (qs.get('symbol') or ['BTCUSDT'])[0].upper()
+                interval = (qs.get('interval') or ['1h'])[0]
+                side = (qs.get('side') or ['long'])[0]
+                con = init_journal(DEFAULT_DB)
+                try:
+                    snapshot = build_snapshot_payload(symbol=symbol, interval=interval, side=side)
+                    pred_id = save_prediction(con, create_prediction_from_snapshot(snapshot, horizon_bars=int((qs.get('horizon') or ['12'])[0])))
+                    verify = verify_open_predictions(con, fetch_klines)
+                    stats = prediction_stats(con)
+                    stats['prediction_id'] = pred_id
+                    stats['verify_result'] = verify
+                    stats['recent'] = recent_predictions(con, limit=8)
+                    return self._send(200, json.dumps(stats, ensure_ascii=False))
+                finally:
+                    con.close()
+            if parsed.path == '/api/learning/stats':
+                con = init_journal(DEFAULT_DB)
+                try:
+                    stats = prediction_stats(con)
+                    stats['recent'] = recent_predictions(con, limit=8)
+                    return self._send(200, json.dumps(stats, ensure_ascii=False))
+                finally:
+                    con.close()
             if parsed.path == '/api/journal/stats':
                 return self._send(200, json.dumps(handle_journal_api('GET', parsed.path, qs), ensure_ascii=False))
             if parsed.path == '/api/council/recent':

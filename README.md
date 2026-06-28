@@ -17,6 +17,7 @@ See `KNOWLEDGE_GRAPH.md` for the Graphify-style memory graph prototype.
 See `SIMULATION_LAB.md` for the historical simulation and calibration loop.
 See `MACRO_NEWS_IMPACT.md` for the RSS/macro news impact indicator.
 See `SMC.md` for the Smart Money Concepts structure/liquidity layer.
+See `LEARNING_AUTOPILOT.md` for the automatic forecast verification loop.
 
 **Not a trading bot. No financial advice. No fund management.**
 
@@ -50,6 +51,7 @@ See `SMC.md` for the Smart Money Concepts structure/liquidity layer.
 | Simulation Lab | Rolling historical simulations compare predicted setup status with target/stop/timeout outcomes for calibration |
 | Macro/RSS News Impact | RSS headline classifier for Fed/rates/inflation/geopolitics/oil/regulation news with bullish/base/bearish scenarios |
 | Smart Money Concepts | Liquidity sweeps, fair value gaps, break of structure and order-block candidates as extra structure context |
+| Learning Autopilot | Saves live forecasts, verifies older forecasts against future candles, and accumulates accuracy/outcome statistics |
 
 ---
 
