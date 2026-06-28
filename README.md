@@ -16,6 +16,7 @@ See `COUNCIL.md` for the multi-advisor council runner and Chair verdict.
 See `KNOWLEDGE_GRAPH.md` for the Graphify-style memory graph prototype.
 See `SIMULATION_LAB.md` for the historical simulation and calibration loop.
 See `MACRO_NEWS_IMPACT.md` for the RSS/macro news impact indicator.
+See `SMC.md` for the Smart Money Concepts structure/liquidity layer.
 
 **Not a trading bot. No financial advice. No fund management.**
 
@@ -48,6 +49,7 @@ See `MACRO_NEWS_IMPACT.md` for the RSS/macro news impact indicator.
 | Knowledge Graph | Graphify-style nodes/edges over setups, outcomes, patterns, council reviews, advisors, verdicts and blockers |
 | Simulation Lab | Rolling historical simulations compare predicted setup status with target/stop/timeout outcomes for calibration |
 | Macro/RSS News Impact | RSS headline classifier for Fed/rates/inflation/geopolitics/oil/regulation news with bullish/base/bearish scenarios |
+| Smart Money Concepts | Liquidity sweeps, fair value gaps, break of structure and order-block candidates as extra structure context |
 
 ---
 

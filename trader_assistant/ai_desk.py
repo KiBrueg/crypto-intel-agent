@@ -103,6 +103,7 @@ def build_ai_desk_notes(snapshot):
     bullish_pats, bearish_pats, neutral_pats = _pattern_bias(snapshot)
     fg = snapshot.get('fear_greed') or {}
     ob = snapshot.get('order_book') or {}
+    smc = snapshot.get('smc') or {}
 
     mtf_note = f"MTF counts: bullish={counts.get('bullish',0)}, bearish={counts.get('bearish',0)}, mixed={counts.get('mixed',0)}."
     conflict = bool(bullish_pats and bearish_pats) or (counts.get('bullish', 0) and counts.get('bearish', 0))
@@ -129,6 +130,7 @@ def build_ai_desk_notes(snapshot):
             f"Trend read: {analysis.get('trend', 'n/a')} at price {analysis.get('price', 'n/a')}.",
             f"RSI14={indicators.get('rsi_14', 'n/a')}, VWAP={indicators.get('vwap', 'n/a')}, ATR14={indicators.get('atr_14', 'n/a')}.",
             f"Pattern map: bullish={', '.join(bullish_pats) or 'none'}, bearish={', '.join(bearish_pats) or 'none'}.",
+            f"SMC context: {smc.get('bias', 'n/a')} bias, score={smc.get('score', 'n/a')}; zones={len(smc.get('zones') or [])}.",
             "Technical job: locate structure, levels and invalidation before any thesis.",
         ]),
         'template': 'templates/ai/setup_review.md',

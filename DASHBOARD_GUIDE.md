@@ -34,6 +34,7 @@ http://127.0.0.1:8765
 - Knowledge Graph: Graphify-style preview of nodes/edges linking setups, patterns, outcomes, council reviews, advisors and blockers.
 - Simulation Lab: rolling historical simulations that score target/stop/timeout and suggest calibration changes.
 - Macro/RSS News Impact: headline-based indicator for Fed/rates/inflation/geopolitics/oil/regulation shocks with bullish/base/bearish scenarios.
+- Smart Money Concepts: liquidity sweeps, FVG/imbalances, break of structure and order-block candidates.
 - Candlestick chart with detected levels.
 - EMA9 / EMA21 / VWAP / RSI14 / ATR14.
 - Entry-based risk/reward calculator.

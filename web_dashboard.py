@@ -30,6 +30,7 @@ from trader_assistant.council import run_council
 from trader_assistant.knowledge_graph import build_knowledge_graph
 from trader_assistant.simulation import run_rolling_simulations, calibrate_simulations
 from trader_assistant.market_news import fetch_rss_items, score_news_items
+from trader_assistant.smc import detect_smc_context
 
 DEFAULT_WATCHLIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'LINKUSDT', 'DOGEUSDT', 'ADAUSDT']
 DEFAULT_TIMEFRAMES = ('15m', '1h', '4h')
@@ -155,6 +156,7 @@ def build_snapshot_payload(
     fg = evaluate_fear_greed(fg_value, btc_context=context, eth_context=context, breadth={'share_above_vwap': 0.5, 'median_24h_change': 0.0, 'risk_assets_outperform_btc': False})
     mtf = build_multi_timeframe_payload(symbol, klines_fetcher=klines_fetcher)
     patterns = detect_classic_patterns(analysis.get('candles', []))
+    smc = detect_smc_context(analysis.get('candles', []))
     partial = {
         'symbol': symbol,
         'analysis': {k: v for k, v in analysis.items() if k != 'candles'},
@@ -163,6 +165,7 @@ def build_snapshot_payload(
         'risk_reward': rr,
         'fear_greed': fg,
         'classic_patterns': patterns,
+        'smc': smc,
     }
     pro_checklist = build_pro_trader_checklist(partial)
     coach_snapshot = {**partial, 'pro_checklist': pro_checklist}
@@ -187,6 +190,7 @@ def build_snapshot_payload(
         'risk_reward': rr,
         'fear_greed': fg,
         'classic_patterns': patterns,
+        'smc': smc,
         'pro_checklist': pro_checklist,
         'trader_coach': trader_coach,
     }
@@ -241,6 +245,7 @@ def render_dashboard_html():
       <div class="card section" style="margin-top:16px"><h3>Knowledge Graph</h3><div id="knowledgegraph"></div></div>
       <div class="card section" style="margin-top:16px"><h3>Simulation Lab</h3><div id="simulationlab"></div><button class="btn secondary" onclick="runSimulationLab()">Run historical simulation</button></div>
       <div class="card section" style="margin-top:16px"><h3>Macro/RSS News Impact</h3><div id="newsimpact"></div><button class="btn secondary" onclick="scanNewsImpact()">Scan RSS macro/news</button></div>
+      <div class="card section" style="margin-top:16px"><h3>Smart Money Concepts</h3><div id="smc"></div></div>
       <div class="card section" style="margin-top:16px"><h3>Multi-Timeframe</h3><div id="mtf" class="tfgrid"></div></div>
       <div class="sections">
         <div class="card section"><h3>Technical Context</h3><ul class="list" id="tech"></ul></div>
@@ -274,7 +279,7 @@ function showError(e){{$('metrics').innerHTML=`<div class="metric"><div class="l
 function render(data){{lastSnapshot=data; const a=data.analysis, ind=a.indicators, ob=data.order_book, rr=data.risk_reward, fg=data.fear_greed, ql=(rr.rr_quality||{{label:'n/a',class:'muted'}});
  $('metrics').innerHTML=[['Symbol',data.symbol,''],['Price',fmt(a.price),''],['Trend',a.trend,a.trend==='bearish'?'bad':(a.trend==='bullish'?'good':'warn')],['R/R',fmt(rr.risk_reward_ratio),ql.class],['Quality',ql.label,ql.class]].map(m=>`<div class="metric"><div class="l">${{m[0]}}</div><div class="v ${{m[2]}}">${{m[1]}}</div></div>`).join('');
  $('tech').innerHTML=li([`EMA9/EMA21: <span class="mono">${{fmt(ind.ema_9)}} / ${{fmt(ind.ema_21)}}</span>`,`VWAP: <span class="mono">${{fmt(ind.vwap)}}</span>`,`RSI14: <span class="mono">${{fmt(ind.rsi_14)}}</span>`,`ATR14: <span class="mono">${{fmt(ind.atr_14)}}</span>`,...(a.setup_notes||[])]);
- renderRR(rr); renderAIDesk(data.ai_desk); renderCouncil(data.council); renderChecklist(data.pro_checklist); renderCoach(data.trader_coach); loadJournalStats(); renderMTF(data.multi_timeframe); renderPatterns(data.classic_patterns||[]); $('fg').innerHTML=li([`Index: <b>${{fg.index_value}}</b> / ${{fg.label}}`,`Confirmation: <b>${{fg.confirmation}}</b>`,`Score: <span class="mono">${{fmt(fg.score)}}</span>`,fg.interpretation]);
+ renderRR(rr); renderAIDesk(data.ai_desk); renderCouncil(data.council); renderChecklist(data.pro_checklist); renderCoach(data.trader_coach); loadJournalStats(); renderMTF(data.multi_timeframe); renderPatterns(data.classic_patterns||[]); renderSMC(data.smc); $('fg').innerHTML=li([`Index: <b>${{fg.index_value}}</b> / ${{fg.label}}`,`Confirmation: <b>${{fg.confirmation}}</b>`,`Score: <span class="mono">${{fmt(fg.score)}}</span>`,fg.interpretation]);
  const fib=a.levels.fibonacci||{{}}, piv=a.levels.pivots||{{}}; $('book').innerHTML=li([`Spread: <span class="mono">${{fmt(ob.spread_bps)}}</span> bps`,`Imbalance: <span class="mono">${{fmt(ob.imbalance)}}</span>`,`Signals: ${{(ob.signals||['none']).join(', ')}}`,`Nearest: ${{(a.levels.nearest||[]).map(fmt).join(', ')}}`,`Fib .382/.5/.618: ${{fmt(fib['0.382'])}}, ${{fmt(fib['0.500'])}}, ${{fmt(fib['0.618'])}}`,`Pivot/R1/S1: ${{fmt(piv.pivot)}}, ${{fmt(piv.r1)}}, ${{fmt(piv.s1)}}`]);
  drawChart(data.candles, a.levels); }}
 function renderRR(rr){{const q=rr.rr_quality||{{label:'n/a',class:'muted',message:''}}; $('rr').innerHTML=li([`Source: <b>${{rr.source}}</b>`,`Entry: <span class="mono">${{fmt(rr.entry)}}</span>`,`Stop: <span class="mono">${{fmt(rr.stop)}}</span>`,`Target: <span class="mono">${{fmt(rr.target)}}</span>`,`Risk: <span class="mono">${{fmt(rr.risk_per_unit)}}</span>`,`Reward: <span class="mono">${{fmt(rr.reward_per_unit)}}</span>`,`R/R: <b class="${{q.class}}">${{fmt(rr.risk_reward_ratio)}} / ${{q.label}}</b>`,`Quality note: ${{q.message}}`,`Valid: ${{rr.valid}}`,`Invalidation: ${{rr.invalidation||'n/a'}}`,...(rr.warnings||[]).map(w=>`Warning: <span class="warn">${{w}}</span>`)]);}}
@@ -287,6 +292,7 @@ function renderKnowledgeGraph(g){{if(!g||g.error)return; const kinds=Object.entr
 function renderSimulationLab(s){{if(!s||s.error){{$('simulationlab').innerHTML=`<p class="error">${{s&&s.error?s.error:'Simulation failed'}}</p>`;return;}} const rows=Object.entries(s.by_predicted_status||{{}}).map(([k,v])=>`<li><b>${{k}}</b>: total ${{v.total}}, target ${{Math.round((v.target_rate||0)*100)}}%, stopped ${{Math.round((v.stop_rate||0)*100)}}%</li>`).join(''); const scenarios=Object.entries(s.scenarios||{{}}).map(([k,v])=>`<li><b>${{k}}</b>: ${{v.calibration_action}}</li>`).join(''); $('simulationlab').innerHTML=`<p><b>${{s.symbol}}</b> ${{s.interval}} · simulations: <b>${{s.total}}</b></p><ul class="list">${{rows||'<li>No simulation rows.</li>'}}</ul><h4>Calibration scenarios</h4><ul class="list">${{scenarios||'<li>No scenarios yet.</li>'}}</ul><h4>Calibration</h4><ul class="list">${{(s.recommendations||[]).map(x=>`<li>${{x}}</li>`).join('')}}</ul>`;}}
 function renderNewsImpact(n){{if(!n||n.error){{$('newsimpact').innerHTML=`<p class="error">${{n&&n.error?n.error:'News scan failed'}}</p>`;return;}} const cls=n.net_bias==='bullish'?'good':(n.net_bias==='bearish'?'bad':'warn'); const items=(n.scored_items||[]).filter(x=>x.impact_score!==0).slice(0,6).map(x=>`<li><b class="${{x.bias==='bullish'?'good':(x.bias==='bearish'?'bad':'warn')}}">${{x.bias}}</b> · ${{x.title}} <span class="small">(${{(x.drivers||[]).join(', ')}})</span></li>`).join(''); const scenarios=Object.entries(n.scenarios||{{}}).map(([k,v])=>`<li><b>${{k}}</b>: ${{v.market_effect}}</li>`).join(''); $('newsimpact').innerHTML=`<p>Net news bias: <b class="${{cls}}">${{n.net_bias}}</b> · score <b>${{n.net_score}}</b> · Fear/Greed pressure: <b>${{n.fear_greed_pressure}}</b></p><h4>Scenario impact</h4><ul class="list">${{scenarios}}</ul><h4>High-signal headlines</h4><ul class="list">${{items||'<li>No high-signal macro/news items in scanned feeds.</li>'}}</ul>`;}}
 function renderMTF(mtf){{if(!mtf||!mtf.frames) return; $('mtf').innerHTML=mtf.frames.map(f=>`<div class="tf"><b>${{f.interval}}</b><div>Trend: <span class="${{f.trend==='bearish'?'bad':(f.trend==='bullish'?'good':'warn')}}">${{f.trend}}</span></div><div>RSI: ${{fmt(f.rsi_14)}}</div><div>VWAP Δ: ${{fmt(f.price_vs_vwap_pct)}}%</div><div class="small">${{f.note||''}}</div></div>`).join('');}}
+function renderSMC(smc){{if(!smc) return; const cls=smc.bias==='bullish'?'good':(smc.bias==='bearish'?'bad':'warn'); const zones=(smc.zones||[]).slice(0,8).map(z=>`<li><b class="${{z.direction==='bullish'?'good':(z.direction==='bearish'?'bad':'warn')}}">${{z.direction}}</b> ${{z.type}} — ${{fmt(z.low)}} / ${{fmt(z.high)}} <span class="small">${{z.note||''}}</span></li>`).join(''); $('smc').innerHTML=`<p><b class="${{cls}}">${{smc.bias}}</b> · score ${{smc.score}} · ${{smc.summary}}</p><ul class="list">${{zones||'<li>No high-signal SMC zone detected yet.</li>'}}</ul>`;}}
 function renderPatterns(patterns){{if(!patterns.length){{$('patterns').innerHTML='<li>No high-signal classic pattern detected. Wait for cleaner structure.</li>'; return;}} $('patterns').innerHTML=patterns.map(p=>`<li><b class="${{p.bias==='bearish'?'bad':(p.bias==='bullish'?'good':'warn')}}">${{p.name}}</b> — ${{p.bias}}, confidence ${{fmt(p.confidence)}}<br><span class="small">${{p.trader_note}}</span></li>`).join('');}}
 function drawChart(candles, levels){{const c=$('chart'), ctx=c.getContext('2d'), w=c.width,h=c.height; ctx.clearRect(0,0,w,h); ctx.fillStyle='#080814'; ctx.fillRect(0,0,w,h); if(!candles||!candles.length)return; const hi=Math.max(...candles.map(x=>x.high)), lo=Math.min(...candles.map(x=>x.low)), span=hi-lo||1, pad=28; const X=i=>pad+i*(w-pad*2)/Math.max(1,candles.length-1), Y=p=>pad+(hi-p)/span*(h-pad*2);
  const all=[...(levels.support_resistance||[]),...Object.values(levels.fibonacci||{{}}),...Object.values(levels.pivots||{{}})]; ctx.font='10px Inter'; all.forEach((lv,i)=>{{const y=Y(lv); if(y<pad||y>h-pad)return; ctx.strokeStyle=i%2?'#7132f5':'#334155'; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke(); ctx.setLineDash([]);}});
