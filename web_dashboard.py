@@ -239,7 +239,7 @@ def render_dashboard_html():
     </div>
     <div>
       <div class="metrics" id="metrics"></div>
-      <canvas class="chart" id="chart" width="980" height="390"></canvas>
+      <div class="chart" id="chart"></div>
       <div class="market-links"><a id="cmcLink" class="chip" href="https://coinmarketcap.com/currencies/bitcoin/" target="_blank" rel="noopener">Open CoinMarketCap reference</a><a id="tvLink" class="chip" href="https://www.tradingview.com/chart/?symbol=BINANCE:BTCUSDT" target="_blank" rel="noopener">Open TradingView chart</a></div>
       <div class="card section" style="margin-top:16px"><h3>AI Desk Notes</h3><div id="aidesk"></div></div>
       <div class="card section" style="margin-top:16px"><h3>Five-Lens Idea Review</h3><div id="fivelens"></div></div>
@@ -264,6 +264,7 @@ def render_dashboard_html():
     </div>
   </div>
 </div>
+<script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <script>
 const $=id=>document.getElementById(id); let lastSnapshot=null, autoTimer=null, lastSetupId=null;
 function q(){{const p=new URLSearchParams(); ['symbol','interval','side','entry','stop','target'].forEach(id=>{{if($(id).value)p.set(id,$(id).value)}}); return p.toString();}}
@@ -307,17 +308,36 @@ function renderMTF(mtf){{if(!mtf||!mtf.frames) return; $('mtf').innerHTML=mtf.fr
 function renderSMC(smc){{if(!smc) return; const cls=smc.bias==='bullish'?'good':(smc.bias==='bearish'?'bad':'warn'); const zones=(smc.zones||[]).slice(0,8).map(z=>`<li><b class="${{z.direction==='bullish'?'good':(z.direction==='bearish'?'bad':'warn')}}">${{z.direction}}</b> ${{z.type}} — ${{fmt(z.low)}} / ${{fmt(z.high)}} <span class="small">${{z.note||''}}</span></li>`).join(''); $('smc').innerHTML=`<p><b class="${{cls}}">${{smc.bias}}</b> · score ${{smc.score}} · ${{smc.summary}}</p><ul class="list">${{zones||'<li>No high-signal SMC zone detected yet.</li>'}}</ul>`;}}
 function renderPatterns(patterns){{if(!patterns.length){{$('patterns').innerHTML='<li>No high-signal classic pattern detected. Wait for cleaner structure.</li>'; return;}} $('patterns').innerHTML=patterns.map(p=>`<li><b class="${{p.bias==='bearish'?'bad':(p.bias==='bullish'?'good':'warn')}}">${{p.name}}</b> — ${{p.bias}}, confidence ${{fmt(p.confidence)}}<br><span class="small">${{p.trader_note}}</span></li>`).join('');}}
 function updateMarketLinks(symbol){{const s=(symbol||'BTCUSDT').toUpperCase(); const base=s.replace('USDT','').toLowerCase(); const cmc={{btc:'bitcoin',eth:'ethereum',sol:'solana',bnb:'bnb',xrp:'xrp',link:'chainlink',doge:'dogecoin',ada:'cardano',avax:'avalanche',inj:'injective'}}[base]||base; $('cmcLink').href='https://coinmarketcap.com/currencies/'+cmc+'/'; $('tvLink').href='https://www.tradingview.com/chart/?symbol=BINANCE:'+s;}}
-function drawChart(candles, levels, symbol, interval){{const c=$('chart'), ctx=c.getContext('2d'), w=c.width,h=c.height; ctx.clearRect(0,0,w,h); ctx.fillStyle='#fafaf8'; ctx.fillRect(0,0,w,h); if(!candles||!candles.length)return;
- const highs=candles.map(x=>x.high), lows=candles.map(x=>x.low), closes=candles.map(x=>x.close); let hi=Math.max(...highs), lo=Math.min(...lows); const range=(hi-lo)||1; hi+=range*.08; lo-=range*.08; const span=hi-lo||1; const left=54,right=86,top=34,bottom=38; const plotW=w-left-right, plotH=h-top-bottom; const X=i=>left+i*plotW/Math.max(1,candles.length-1), Y=p=>top+(hi-p)/span*plotH;
- ctx.strokeStyle='rgba(45,45,45,.10)'; ctx.lineWidth=1; ctx.font='11px Source Code Pro'; ctx.fillStyle='rgba(45,45,45,.58)'; ctx.textBaseline='middle'; ctx.textAlign='left';
- for(let i=0;i<=6;i++){{const price=lo+(span*i/6), y=Y(price); ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(w-right,y); ctx.stroke(); ctx.fillText(fmt(price), w-right+9, y);}}
+let tvChart=null, tvCandleSeries=null, tvLevelSeries=[];
+function toChartTime(k, idx){{const raw=k.ts||k.open_time||k.time; return raw?Math.floor(Number(raw)/1000):idx;}}
+function drawChart(candles, levels, symbol, interval){{const el=$('chart'); if(!candles||!candles.length)return;
+ if(window.LightweightCharts){{
+   el.innerHTML=''; tvLevelSeries=[];
+   tvChart=LightweightCharts.createChart(el,{{
+     height:390,
+     layout:{{background:{{type:'solid',color:'#fafaf8'}},textColor:'#2D2D2D',fontFamily:'Source Sans 3'}},
+     grid:{{vertLines:{{color:'rgba(45,45,45,.075)'}},horzLines:{{color:'rgba(45,45,45,.10)'}}}},
+     rightPriceScale:{{borderColor:'rgba(45,45,45,.22)'}},
+     timeScale:{{borderColor:'rgba(45,45,45,.22)',timeVisible:true,secondsVisible:false}},
+     crosshair:{{mode:LightweightCharts.CrosshairMode.Normal,vertLine:{{color:'#D2694E',style:2,width:1}},horzLine:{{color:'#D2694E',style:2,width:1}}}},
+     localization:{{priceFormatter:p=>fmt(p)}}
+   }});
+   tvCandleSeries=tvChart.addCandlestickSeries({{upColor:'#3f7a56',downColor:'#b54a3a',borderUpColor:'#3f7a56',borderDownColor:'#b54a3a',wickUpColor:'#3f7a56',wickDownColor:'#b54a3a',priceLineColor:'#D2694E',lastValueVisible:true,priceLineVisible:true}});
+   tvCandleSeries.setData(candles.map((k,i)=>({{time:toChartTime(k,i),open:k.open,high:k.high,low:k.low,close:k.close}})));
+   const all=[...(levels.support_resistance||[]),...Object.values(levels.fibonacci||{{}}),...Object.values(levels.pivots||{{}})].filter(x=>typeof x==='number');
+   all.slice(0,18).forEach((lv,i)=>tvCandleSeries.createPriceLine({{price:lv,color:i%2?'rgba(210,105,78,.62)':'rgba(210,105,29,.42)',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:i%2?'level':'pivot'}}));
+   const legend=document.createElement('div'); legend.className='small mono'; legend.style.position='absolute'; legend.style.left='76px'; legend.style.top='292px'; legend.style.background='rgba(250,250,248,.78)'; legend.style.padding='4px 8px'; legend.style.border='1px solid rgba(229,216,201,.8)'; legend.style.borderRadius='8px';
+   const last=candles[candles.length-1]; legend.textContent=`${{symbol||''}} · ${{interval||''}}  O ${{fmt(last.open)}}  H ${{fmt(last.high)}}  L ${{fmt(last.low)}}  C ${{fmt(last.close)}}`; el.style.position='relative'; el.appendChild(legend);
+   tvChart.timeScale().fitContent(); return;
+ }}
+ el.innerHTML='<canvas width="980" height="390" style="width:100%;height:390px"></canvas>'; const c=el.querySelector('canvas'), ctx=c.getContext('2d'), w=c.width,h=c.height; ctx.clearRect(0,0,w,h); ctx.fillStyle='#fafaf8'; ctx.fillRect(0,0,w,h);
+ const highs=candles.map(x=>x.high), lows=candles.map(x=>x.low); let hi=Math.max(...highs), lo=Math.min(...lows); const range=(hi-lo)||1; hi+=range*.08; lo-=range*.08; const span=hi-lo||1; const left=54,right=86,top=34,bottom=38; const plotW=w-left-right, plotH=h-top-bottom; const X=i=>left+i*plotW/Math.max(1,candles.length-1), Y=p=>top+(hi-p)/span*plotH;
+ ctx.strokeStyle='rgba(45,45,45,.10)'; ctx.lineWidth=1; ctx.font='11px Source Code Pro'; ctx.fillStyle='rgba(45,45,45,.58)'; ctx.textBaseline='middle'; ctx.textAlign='left'; for(let i=0;i<=6;i++){{const price=lo+(span*i/6), y=Y(price); ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(w-right,y); ctx.stroke(); ctx.fillText(fmt(price), w-right+9, y);}}
  ctx.textBaseline='top'; ctx.textAlign='center'; const ticks=6; for(let i=0;i<=ticks;i++){{const idx=Math.min(candles.length-1,Math.round(i*(candles.length-1)/ticks)); const x=X(idx); ctx.strokeStyle='rgba(45,45,45,.075)'; ctx.beginPath(); ctx.moveTo(x,top); ctx.lineTo(x,h-bottom); ctx.stroke(); const rawTs=candles[idx].ts||candles[idx].open_time||candles[idx].time; const t=rawTs?new Date(Number(rawTs)).toISOString().slice(5,16).replace('T',' '):String(idx); ctx.fillStyle='rgba(45,45,45,.56)'; ctx.fillText(t, x, h-bottom+10);}}
- ctx.strokeStyle='rgba(45,45,45,.22)'; ctx.strokeRect(left,top,plotW,plotH);
- const all=[...(levels.support_resistance||[]),...Object.values(levels.fibonacci||{{}}),...Object.values(levels.pivots||{{}})].filter(x=>typeof x==='number'); all.forEach((lv,i)=>{{const y=Y(lv); if(y<top||y>h-bottom)return; ctx.strokeStyle=i%2?'rgba(210,105,78,.52)':'rgba(210,105,29,.34)'; ctx.setLineDash([5,5]); ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(w-right,y); ctx.stroke(); ctx.setLineDash([]);}});
+ ctx.strokeStyle='rgba(45,45,45,.22)'; ctx.strokeRect(left,top,plotW,plotH); const all=[...(levels.support_resistance||[]),...Object.values(levels.fibonacci||{{}}),...Object.values(levels.pivots||{{}})].filter(x=>typeof x==='number'); all.forEach((lv,i)=>{{const y=Y(lv); if(y<top||y>h-bottom)return; ctx.strokeStyle=i%2?'rgba(210,105,78,.52)':'rgba(210,105,29,.34)'; ctx.setLineDash([5,5]); ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(w-right,y); ctx.stroke(); ctx.setLineDash([]);}});
  const candleW=Math.max(3,Math.min(9,plotW/candles.length*.62)); candles.forEach((k,i)=>{{const x=X(i), o=Y(k.open), cl=Y(k.close), hh=Y(k.high), ll=Y(k.low), up=k.close>=k.open; ctx.strokeStyle=up?'#3f7a56':'#b54a3a'; ctx.fillStyle=ctx.strokeStyle; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(x,hh); ctx.lineTo(x,ll); ctx.stroke(); ctx.fillRect(x-candleW/2,Math.min(o,cl),candleW,Math.max(1,Math.abs(cl-o)));}});
  const last=candles[candles.length-1], py=Y(last.close); ctx.strokeStyle='#D2694E'; ctx.setLineDash([6,4]); ctx.beginPath(); ctx.moveTo(left,py); ctx.lineTo(w-right,py); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle='#D2694E'; ctx.fillRect(w-right+5,py-10,72,20); ctx.fillStyle='#fffdfa'; ctx.font='11px Source Code Pro'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(fmt(last.close), w-right+41, py);
  ctx.fillStyle='#2D2D2D'; ctx.font='600 13px Source Sans 3'; ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillText(`${{symbol||''}} · ${{interval||''}}`, left, 10); ctx.font='11px Source Code Pro'; ctx.fillStyle='rgba(45,45,45,.66)'; ctx.fillText(`O ${{fmt(last.open)}}  H ${{fmt(last.high)}}  L ${{fmt(last.low)}}  C ${{fmt(last.close)}}`, left+108, 11);
- ctx.save(); ctx.translate(w-16, top+plotH/2); ctx.rotate(Math.PI/2); ctx.fillStyle='rgba(45,45,45,.44)'; ctx.font='10px Source Sans 3'; ctx.textAlign='center'; ctx.fillText('PRICE SCALE',0,0); ctx.restore();
 }}
 loadSnapshot();
 </script></body></html>'''
