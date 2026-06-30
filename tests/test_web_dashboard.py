@@ -53,6 +53,7 @@ def test_dashboard_html_contains_core_controls_and_sections():
     assert 'chartoverlayinfo' in html
     assert 'Simulation Lab' in html
     assert 'Learning Autopilot' in html
+    assert 'autopilotstatus' in html
     assert '/api/snapshot' in html
     assert '/api/risk-reward' in html
     assert '/api/multi-timeframe' in html
