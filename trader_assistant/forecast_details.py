@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from trader_assistant.forecast_outcomes import classify_forecast_outcome
+from trader_assistant.forecast_due import forecast_due_status
 
 
 def _row_to_forecast(row):
@@ -23,7 +24,9 @@ def build_forecast_detail(con, forecast_id):
     if not row:
         return {'mode': 'forecast_detail', 'error': 'not_found', 'forecast_id': int(forecast_id)}
     forecast = _row_to_forecast(row)
+    due = forecast_due_status(row['start_ts'], row['horizon_bars'], row['interval'], row['verified_at'])
     outcome_summary = classify_forecast_outcome(dict(row))
+    forecast['due'] = due
     forecast['outcome_badge'] = outcome_summary['badge']
     rr = None
     try:

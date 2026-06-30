@@ -38,6 +38,7 @@ def test_forecast_timeline_returns_last_forecast_and_events():
         assert timeline['last_forecast']['symbol'] == 'ETHUSDT'
         assert timeline['events'][0]['symbol'] == 'ETHUSDT'
         assert timeline['events'][0]['display_status'] == 'pending'
+        assert timeline['events'][0]['due']['state'] in ('pending', 'due')
         assert timeline['events'][0]['direction'] in ('up', 'down')
 
 

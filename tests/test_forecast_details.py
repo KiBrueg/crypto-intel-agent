@@ -40,6 +40,7 @@ def test_forecast_detail_returns_explainable_prediction_payload():
         assert detail['risk_plan']['target'] == 110
         assert detail['context']['smc_bias'] == 'bullish'
         assert detail['context']['council_verdict'] == 'clean'
+        assert detail['forecast']['due']['state'] in ('pending', 'due')
         assert detail['explanation'][0].startswith('Forecast')
 
 

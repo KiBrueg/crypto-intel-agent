@@ -3,12 +3,14 @@ from __future__ import annotations
 from collections import Counter
 
 from trader_assistant.forecast_outcomes import outcome_badge
+from trader_assistant.forecast_due import forecast_due_status
 
 
 def _event_from_row(row):
     outcome = row['verified_outcome'] or 'pending'
     correct = row['correct_direction']
     badge = outcome_badge(outcome, correct)
+    due = forecast_due_status(row['start_ts'], row['horizon_bars'], row['interval'], row['verified_at'])
     return {
         'id': row['id'],
         'created_at': row['created_at'],
@@ -19,6 +21,7 @@ def _event_from_row(row):
         'display_status': badge['display_status'],
         'outcome': outcome,
         'outcome_badge': badge,
+        'due': due,
         'correct_direction': correct,
         'entry': row['entry'],
         'stop': row['stop'],
