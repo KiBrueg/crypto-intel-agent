@@ -35,12 +35,15 @@ def test_build_chart_overlays_combines_predictions_and_volume_spikes():
         candle(2, 100, 101, 99, 100, 10),
         candle(3, 100, 104, 99, 103, 30),
     ]
-    predictions = [{'time': 2, 'shape': 'arrowUp', 'position': 'belowBar', 'color': '#D2694E', 'text': '#1 up pending'}]
+    predictions = [{'time': 2, 'shape': 'arrowUp', 'position': 'belowBar', 'color': '#D2694E', 'text': '#1 up pending', 'outcome': 'pending'}]
     overlays = build_chart_overlays(candles, prediction_markers=predictions, volume_lookback=2, volume_multiplier=2.0)
     assert overlays['mode'] == 'chart_overlays'
     assert len(overlays['prediction_markers']) == 1
     assert len(overlays['volume_spike_markers']) == 1
     assert len(overlays['markers']) == 2
+    assert overlays['summary']['prediction_markers'] == 1
+    assert overlays['summary']['volume_spike_markers'] == 1
+    assert overlays['summary']['prediction_outcomes']['pending'] == 1
 
 
 if __name__ == '__main__':

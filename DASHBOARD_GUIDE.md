@@ -24,7 +24,7 @@ http://127.0.0.1:8765
 ## What the dashboard shows
 
 - Warm premium UI: modified Stripe style with `#fafaf8`, `#2D2D2D`, `#D2694E` and `#D2691D`; no blue accent dependency.
-- Trader-style chart powered by TradingView Lightweight Charts when CDN is available; fallback schematic canvas if it is not. It includes horizontal price grid, right-side price scale, bottom time scale, OHLC header, current-price marker, volume bars, EMA9/EMA21/VWAP overlays, entry/stop/target lines, SMC/liquidity level lines, Auto Learner prediction markers, volume spike markers and detected support/resistance/Fibonacci/pivot levels.
+- Trader-style chart powered by TradingView Lightweight Charts when CDN is available; fallback schematic canvas if it is not. It includes horizontal price grid, right-side price scale, bottom time scale, OHLC header, current-price marker, volume bars, EMA9/EMA21/VWAP overlays, entry/stop/target lines, SMC/liquidity level lines, Auto Learner prediction markers, volume spike markers, overlay summary/legend and detected support/resistance/Fibonacci/pivot levels.
 - External reference links: CoinMarketCap page and TradingView chart open in a separate tab instead of embedding/scraping third-party UI.
 - Watchlist buttons for major pairs.
 - Multi-timeframe context: 15m / 1h / 4h.

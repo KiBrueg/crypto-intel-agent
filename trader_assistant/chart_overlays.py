@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections import Counter
+
 
 def _time_from_candle(candle, fallback_index):
     raw = candle.get('ts') or candle.get('open_time') or candle.get('time')
@@ -39,9 +41,16 @@ def build_chart_overlays(candles, prediction_markers=None, volume_lookback=20, v
     prediction_markers = list(prediction_markers or [])
     spikes = volume_spike_markers(candles, lookback=volume_lookback, multiplier=volume_multiplier)
     markers = sorted(prediction_markers + spikes, key=lambda m: (m.get('time') or 0, m.get('text') or ''))
+    outcomes = Counter(m.get('outcome') or 'unknown' for m in prediction_markers)
     return {
         'mode': 'chart_overlays',
         'prediction_markers': prediction_markers,
         'volume_spike_markers': spikes,
         'markers': markers,
+        'summary': {
+            'prediction_markers': len(prediction_markers),
+            'volume_spike_markers': len(spikes),
+            'total_markers': len(markers),
+            'prediction_outcomes': dict(outcomes),
+        },
     }

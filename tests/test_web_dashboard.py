@@ -50,6 +50,7 @@ def test_dashboard_html_contains_core_controls_and_sections():
     assert 'Setup Journal' in html
     assert 'Knowledge Graph' in html
     assert 'Compact Graph Context' in html
+    assert 'chartoverlayinfo' in html
     assert 'Simulation Lab' in html
     assert 'Learning Autopilot' in html
     assert '/api/snapshot' in html
