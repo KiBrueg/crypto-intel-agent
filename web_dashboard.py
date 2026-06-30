@@ -33,6 +33,7 @@ from trader_assistant.market_news import fetch_rss_items, score_news_items
 from trader_assistant.smc import detect_smc_context
 from trader_assistant.learning_autopilot import create_prediction_from_snapshot, save_prediction, verify_open_predictions, prediction_stats, recent_predictions, prediction_markers, run_learning_cycle
 from trader_assistant.graph_context import build_graph_context
+from trader_assistant.chart_overlays import build_chart_overlays
 
 DEFAULT_WATCHLIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'LINKUSDT', 'DOGEUSDT', 'ADAUSDT']
 DEFAULT_TIMEFRAMES = ('15m', '1h', '4h')
@@ -308,7 +309,7 @@ function renderMTF(mtf){{if(!mtf||!mtf.frames) return; $('mtf').innerHTML=mtf.fr
 function renderSMC(smc){{if(!smc) return; const cls=smc.bias==='bullish'?'good':(smc.bias==='bearish'?'bad':'warn'); const zones=(smc.zones||[]).slice(0,8).map(z=>`<li><b class="${{z.direction==='bullish'?'good':(z.direction==='bearish'?'bad':'warn')}}">${{z.direction}}</b> ${{z.type}} — ${{fmt(z.low)}} / ${{fmt(z.high)}} <span class="small">${{z.note||''}}</span></li>`).join(''); $('smc').innerHTML=`<p><b class="${{cls}}">${{smc.bias}}</b> · score ${{smc.score}} · ${{smc.summary}}</p><ul class="list">${{zones||'<li>No high-signal SMC zone detected yet.</li>'}}</ul>`;}}
 function renderPatterns(patterns){{if(!patterns.length){{$('patterns').innerHTML='<li>No high-signal classic pattern detected. Wait for cleaner structure.</li>'; return;}} $('patterns').innerHTML=patterns.map(p=>`<li><b class="${{p.bias==='bearish'?'bad':(p.bias==='bullish'?'good':'warn')}}">${{p.name}}</b> — ${{p.bias}}, confidence ${{fmt(p.confidence)}}<br><span class="small">${{p.trader_note}}</span></li>`).join('');}}
 function updateMarketLinks(symbol){{const s=(symbol||'BTCUSDT').toUpperCase(); const base=s.replace('USDT','').toLowerCase(); const cmc={{btc:'bitcoin',eth:'ethereum',sol:'solana',bnb:'bnb',xrp:'xrp',link:'chainlink',doge:'dogecoin',ada:'cardano',avax:'avalanche',inj:'injective'}}[base]||base; $('cmcLink').href='https://coinmarketcap.com/currencies/'+cmc+'/'; $('tvLink').href='https://www.tradingview.com/chart/?symbol=BINANCE:'+s;}}
-async function loadPredictionMarkers(symbol, interval){{try{{if(!tvCandleSeries||!tvCandleSeries.setMarkers)return; const r=await fetch('/api/learning/markers?symbol='+encodeURIComponent(symbol||'')+'&interval='+encodeURIComponent(interval||'')); const data=await r.json(); tvCandleSeries.setMarkers(data.markers||[]);}}catch(e){{}}}}
+async function loadPredictionMarkers(symbol, interval){{try{{if(!tvCandleSeries||!tvCandleSeries.setMarkers)return; const r=await fetch('/api/chart-overlays?symbol='+encodeURIComponent(symbol||'')+'&interval='+encodeURIComponent(interval||'')); const data=await r.json(); tvCandleSeries.setMarkers(data.markers||[]);}}catch(e){{}}}}
 let tvChart=null, tvCandleSeries=null, tvLevelSeries=[];
 function toChartTime(k, idx){{const raw=k.ts||k.open_time||k.time; return raw?Math.floor(Number(raw)/1000):idx;}}
 function emaSeries(candles, period){{const k=2/(period+1); let ema=null; return candles.map((c,i)=>{{ema=ema===null?c.close:(c.close*k+ema*(1-k)); return {{time:toChartTime(c,i), value:ema}};}});}}
@@ -444,6 +445,19 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     return self._send(200, json.dumps({'mode': 'prediction_markers', 'markers': markers}, ensure_ascii=False))
                 finally:
                     con.close()
+            if parsed.path == '/api/chart-overlays':
+                symbol = (qs.get('symbol') or ['BTCUSDT'])[0].upper()
+                interval = (qs.get('interval') or ['1h'])[0]
+                candles = fetch_klines(symbol, interval, int((qs.get('limit') or ['160'])[0]))
+                con = init_journal(DEFAULT_DB)
+                try:
+                    preds = prediction_markers(con, symbol=symbol, interval=interval, limit=80)
+                finally:
+                    con.close()
+                overlays = build_chart_overlays(candles, prediction_markers=preds, volume_lookback=int((qs.get('volume_lookback') or ['20'])[0]), volume_multiplier=float((qs.get('volume_multiplier') or ['2.5'])[0]))
+                overlays['symbol'] = symbol
+                overlays['interval'] = interval
+                return self._send(200, json.dumps(overlays, ensure_ascii=False))
             if parsed.path == '/api/journal/stats':
                 return self._send(200, json.dumps(handle_journal_api('GET', parsed.path, qs), ensure_ascii=False))
             if parsed.path == '/api/council/recent':
