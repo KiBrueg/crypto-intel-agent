@@ -23,7 +23,9 @@ http://127.0.0.1:8765
 
 ## What the dashboard shows
 
-- Warm premium UI: Stripe-level product trust with Craft/Emil-style ivory, sand, espresso and clay palette; no blue accent dependency.
+- Warm premium UI: modified Stripe style with `#fafaf8`, `#2D2D2D`, `#D2694E` and `#D2691D`; no blue accent dependency.
+- Trader-style candlestick chart: horizontal price grid, right-side price scale, bottom time scale, OHLC header, current-price marker and detected levels.
+- External reference links: CoinMarketCap page and TradingView chart open in a separate tab instead of embedding/scraping third-party UI.
 - Watchlist buttons for major pairs.
 - Multi-timeframe context: 15m / 1h / 4h.
 - Pro Trader Checklist: readiness score, pass/warn/fail checks, blockers and next checks.
