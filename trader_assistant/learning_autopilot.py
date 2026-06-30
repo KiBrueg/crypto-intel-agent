@@ -89,6 +89,44 @@ def recent_predictions(con, limit=20):
     return [_row_to_prediction(r) for r in con.execute('select * from predictions order by id desc limit ?', (int(limit),)).fetchall()]
 
 
+def prediction_markers(con, symbol=None, interval=None, limit=80):
+    where = []
+    params = []
+    if symbol:
+        where.append('symbol = ?')
+        params.append(str(symbol).upper())
+    if interval:
+        where.append('interval = ?')
+        params.append(str(interval))
+    sql = 'select id,symbol,interval,start_ts,predicted_direction,predicted_status,verified_outcome,correct_direction,entry from predictions'
+    if where:
+        sql += ' where ' + ' and '.join(where)
+    sql += ' order by id desc limit ?'
+    params.append(int(limit))
+    rows = con.execute(sql, params).fetchall()
+    markers = []
+    for r in rows:
+        if r['start_ts'] is None:
+            continue
+        outcome = r['verified_outcome'] or 'pending'
+        direction = r['predicted_direction'] or 'mixed'
+        is_good = r['correct_direction'] == 1 or outcome == 'target'
+        is_bad = r['correct_direction'] == 0 or outcome in ('stopped', 'failed')
+        markers.append({
+            'id': r['id'],
+            'symbol': r['symbol'],
+            'interval': r['interval'],
+            'time': int(int(r['start_ts']) / 1000),
+            'position': 'belowBar' if direction == 'up' else 'aboveBar',
+            'shape': 'arrowUp' if direction == 'up' else ('arrowDown' if direction == 'down' else 'circle'),
+            'color': '#3f7a56' if is_good else ('#b54a3a' if is_bad else '#D2694E'),
+            'text': f"#{r['id']} {direction} {outcome}",
+            'outcome': outcome,
+            'entry': r['entry'],
+        })
+    return list(reversed(markers))
+
+
 def _find_start_index(candles, start_ts):
     if start_ts is None:
         return max(0, len(candles) - 2)

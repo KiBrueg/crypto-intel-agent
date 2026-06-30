@@ -31,7 +31,7 @@ from trader_assistant.knowledge_graph import build_knowledge_graph
 from trader_assistant.simulation import run_rolling_simulations, calibrate_simulations
 from trader_assistant.market_news import fetch_rss_items, score_news_items
 from trader_assistant.smc import detect_smc_context
-from trader_assistant.learning_autopilot import create_prediction_from_snapshot, save_prediction, verify_open_predictions, prediction_stats, recent_predictions, run_learning_cycle
+from trader_assistant.learning_autopilot import create_prediction_from_snapshot, save_prediction, verify_open_predictions, prediction_stats, recent_predictions, prediction_markers, run_learning_cycle
 from trader_assistant.graph_context import build_graph_context
 
 DEFAULT_WATCHLIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'LINKUSDT', 'DOGEUSDT', 'ADAUSDT']
@@ -291,7 +291,7 @@ function render(data){{lastSnapshot=data; const a=data.analysis, ind=a.indicator
  $('tech').innerHTML=li([`EMA9/EMA21: <span class="mono">${{fmt(ind.ema_9)}} / ${{fmt(ind.ema_21)}}</span>`,`VWAP: <span class="mono">${{fmt(ind.vwap)}}</span>`,`RSI14: <span class="mono">${{fmt(ind.rsi_14)}}</span>`,`ATR14: <span class="mono">${{fmt(ind.atr_14)}}</span>`,...(a.setup_notes||[])]);
  renderRR(rr); renderAIDesk(data.ai_desk); renderCouncil(data.council); renderChecklist(data.pro_checklist); renderCoach(data.trader_coach); loadJournalStats(); loadGraphContext(); renderMTF(data.multi_timeframe); renderPatterns(data.classic_patterns||[]); renderSMC(data.smc); $('fg').innerHTML=li([`Index: <b>${{fg.index_value}}</b> / ${{fg.label}}`,`Confirmation: <b>${{fg.confirmation}}</b>`,`Score: <span class="mono">${{fmt(fg.score)}}</span>`,fg.interpretation]);
  const fib=a.levels.fibonacci||{{}}, piv=a.levels.pivots||{{}}; $('book').innerHTML=li([`Spread: <span class="mono">${{fmt(ob.spread_bps)}}</span> bps`,`Imbalance: <span class="mono">${{fmt(ob.imbalance)}}</span>`,`Signals: ${{(ob.signals||['none']).join(', ')}}`,`Nearest: ${{(a.levels.nearest||[]).map(fmt).join(', ')}}`,`Fib .382/.5/.618: ${{fmt(fib['0.382'])}}, ${{fmt(fib['0.500'])}}, ${{fmt(fib['0.618'])}}`,`Pivot/R1/S1: ${{fmt(piv.pivot)}}, ${{fmt(piv.r1)}}, ${{fmt(piv.s1)}}`]);
- drawChart(data.candles, a.levels, data.symbol, data.interval, rr, data.smc); updateMarketLinks(data.symbol); }}
+ drawChart(data.candles, a.levels, data.symbol, data.interval, rr, data.smc); updateMarketLinks(data.symbol); loadPredictionMarkers(data.symbol, data.interval); }}
 function renderRR(rr){{const q=rr.rr_quality||{{label:'n/a',class:'muted',message:''}}; $('rr').innerHTML=li([`Source: <b>${{rr.source}}</b>`,`Entry: <span class="mono">${{fmt(rr.entry)}}</span>`,`Stop: <span class="mono">${{fmt(rr.stop)}}</span>`,`Target: <span class="mono">${{fmt(rr.target)}}</span>`,`Risk: <span class="mono">${{fmt(rr.risk_per_unit)}}</span>`,`Reward: <span class="mono">${{fmt(rr.reward_per_unit)}}</span>`,`R/R: <b class="${{q.class}}">${{fmt(rr.risk_reward_ratio)}} / ${{q.label}}</b>`,`Quality note: ${{q.message}}`,`Valid: ${{rr.valid}}`,`Invalidation: ${{rr.invalidation||'n/a'}}`,...(rr.warnings||[]).map(w=>`Warning: <span class="warn">${{w}}</span>`)]);}}
 function renderAIDesk(d){{if(!d)return; $('aidesk').innerHTML=`<p><b>${{d.summary}}</b></p><div class="tfgrid">${{(d.cards||[]).map(c=>`<div class="tf"><b>${{c.role}}</b><div class="small">Verdict: ${{c.verdict}}</div><ul class="list">${{(c.key_points||[]).slice(0,4).map(x=>`<li>${{x}}</li>`).join('')}}</ul><div class="small mono">${{c.template}}</div></div>`).join('')}}</div>`; $('fivelens').innerHTML=`<div class="tfgrid">${{(d.five_lens_review||[]).map(x=>`<div class="tf"><b>${{x.lens}}</b><div class="small">${{x.advisor}} · ${{x.stance}}</div><p class="small">${{x.note}}</p></div>`).join('')}}</div>`;}}
 function renderCouncil(c){{if(!c)return; const chair=c.chair||{{}}; $('council').innerHTML=`<p><b>${{chair.summary||''}}</b></p><p class="small">Action bias: <b>${{chair.action_bias||'n/a'}}</b></p><div class="tfgrid">${{(c.advisors||[]).map(a=>`<div class="tf"><b>${{a.advisor}}</b><div class="small">${{a.stance}} · ${{a.verdict}}</div><ul class="list">${{(a.points||[]).slice(0,3).map(x=>`<li>${{x}}</li>`).join('')}}</ul></div>`).join('')}}</div><h4>Chair blockers</h4><ul class="list">${{(chair.blockers||[]).map(x=>`<li>${{x}}</li>`).join('')}}</ul><h4>Next actions</h4><ul class="list">${{(chair.next_actions||[]).slice(0,5).map(x=>`<li>${{x}}</li>`).join('')}}</ul>`;}}
@@ -308,6 +308,7 @@ function renderMTF(mtf){{if(!mtf||!mtf.frames) return; $('mtf').innerHTML=mtf.fr
 function renderSMC(smc){{if(!smc) return; const cls=smc.bias==='bullish'?'good':(smc.bias==='bearish'?'bad':'warn'); const zones=(smc.zones||[]).slice(0,8).map(z=>`<li><b class="${{z.direction==='bullish'?'good':(z.direction==='bearish'?'bad':'warn')}}">${{z.direction}}</b> ${{z.type}} — ${{fmt(z.low)}} / ${{fmt(z.high)}} <span class="small">${{z.note||''}}</span></li>`).join(''); $('smc').innerHTML=`<p><b class="${{cls}}">${{smc.bias}}</b> · score ${{smc.score}} · ${{smc.summary}}</p><ul class="list">${{zones||'<li>No high-signal SMC zone detected yet.</li>'}}</ul>`;}}
 function renderPatterns(patterns){{if(!patterns.length){{$('patterns').innerHTML='<li>No high-signal classic pattern detected. Wait for cleaner structure.</li>'; return;}} $('patterns').innerHTML=patterns.map(p=>`<li><b class="${{p.bias==='bearish'?'bad':(p.bias==='bullish'?'good':'warn')}}">${{p.name}}</b> — ${{p.bias}}, confidence ${{fmt(p.confidence)}}<br><span class="small">${{p.trader_note}}</span></li>`).join('');}}
 function updateMarketLinks(symbol){{const s=(symbol||'BTCUSDT').toUpperCase(); const base=s.replace('USDT','').toLowerCase(); const cmc={{btc:'bitcoin',eth:'ethereum',sol:'solana',bnb:'bnb',xrp:'xrp',link:'chainlink',doge:'dogecoin',ada:'cardano',avax:'avalanche',inj:'injective'}}[base]||base; $('cmcLink').href='https://coinmarketcap.com/currencies/'+cmc+'/'; $('tvLink').href='https://www.tradingview.com/chart/?symbol=BINANCE:'+s;}}
+async function loadPredictionMarkers(symbol, interval){{try{{if(!tvCandleSeries||!tvCandleSeries.setMarkers)return; const r=await fetch('/api/learning/markers?symbol='+encodeURIComponent(symbol||'')+'&interval='+encodeURIComponent(interval||'')); const data=await r.json(); tvCandleSeries.setMarkers(data.markers||[]);}}catch(e){{}}}}
 let tvChart=null, tvCandleSeries=null, tvLevelSeries=[];
 function toChartTime(k, idx){{const raw=k.ts||k.open_time||k.time; return raw?Math.floor(Number(raw)/1000):idx;}}
 function emaSeries(candles, period){{const k=2/(period+1); let ema=null; return candles.map((c,i)=>{{ema=ema===null?c.close:(c.close*k+ema*(1-k)); return {{time:toChartTime(c,i), value:ema}};}});}}
@@ -432,6 +433,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     stats = prediction_stats(con)
                     stats['recent'] = recent_predictions(con, limit=8)
                     return self._send(200, json.dumps(stats, ensure_ascii=False))
+                finally:
+                    con.close()
+            if parsed.path == '/api/learning/markers':
+                con = init_journal(DEFAULT_DB)
+                try:
+                    symbol = (qs.get('symbol') or [None])[0]
+                    interval = (qs.get('interval') or [None])[0]
+                    markers = prediction_markers(con, symbol=symbol, interval=interval, limit=int((qs.get('limit') or ['80'])[0]))
+                    return self._send(200, json.dumps({'mode': 'prediction_markers', 'markers': markers}, ensure_ascii=False))
                 finally:
                     con.close()
             if parsed.path == '/api/journal/stats':

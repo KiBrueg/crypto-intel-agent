@@ -10,6 +10,7 @@ from trader_assistant.learning_autopilot import (
     save_prediction,
     verify_open_predictions,
     prediction_stats,
+    prediction_markers,
     run_learning_cycle,
 )
 
@@ -92,8 +93,22 @@ def test_run_learning_cycle_saves_prediction_and_returns_stats():
         con.close()
 
 
+def test_prediction_markers_are_chart_ready():
+    with tempfile.TemporaryDirectory() as td:
+        con = init_journal(Path(td) / 'test.sqlite3')
+        save_prediction(con, create_prediction_from_snapshot(sample_snapshot(), horizon_bars=3))
+        markers = prediction_markers(con, symbol='BTCUSDT', interval='1h')
+        assert len(markers) == 1
+        assert markers[0]['time'] == 1
+        assert markers[0]['shape'] == 'arrowUp'
+        assert markers[0]['position'] == 'belowBar'
+        assert 'pending' in markers[0]['text']
+        con.close()
+
+
 if __name__ == '__main__':
     test_prediction_is_created_from_snapshot_features()
     test_autopilot_saves_and_verifies_prediction_target()
     test_run_learning_cycle_saves_prediction_and_returns_stats()
+    test_prediction_markers_are_chart_ready()
     print('OK learning autopilot tests passed')
