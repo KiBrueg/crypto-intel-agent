@@ -37,7 +37,7 @@ http://127.0.0.1:8765
 - Knowledge Graph: Graphify-style preview of nodes/edges linking setups, patterns, outcomes, council reviews, advisors and blockers.
 - Compact Graph Context: token-budgeted graph summary used to give AI only high-signal memory instead of raw rows/candles.
 - Simulation Lab: rolling historical simulations that score target/stop/timeout and suggest calibration changes.
-- Learning Autopilot: saves current live forecasts, later verifies them against future candles, updates accuracy statistics and shows daemon status/heartbeat, pending/verified counts, last forecast and forecast timeline.
+- Learning Autopilot: saves current live forecasts, later verifies them against future candles, updates accuracy statistics and shows daemon status/heartbeat, pending/verified counts, last forecast, forecast timeline and detailed forecast cards.
 - Macro/RSS News Impact: headline-based indicator for Fed/rates/inflation/geopolitics/oil/regulation shocks with bullish/base/bearish scenarios.
 - Smart Money Concepts: liquidity sweeps, FVG/imbalances, break of structure and order-block candidates.
 - Candlestick chart with detected levels.

@@ -55,6 +55,7 @@ def test_dashboard_html_contains_core_controls_and_sections():
     assert 'Learning Autopilot' in html
     assert 'autopilotstatus' in html
     assert 'forecasttimeline' in html
+    assert 'forecastdetail' in html
     assert '/api/snapshot' in html
     assert '/api/risk-reward' in html
     assert '/api/multi-timeframe' in html
