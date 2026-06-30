@@ -11,6 +11,7 @@ from trader_assistant.learning_autopilot import (
     verify_open_predictions,
     prediction_stats,
     prediction_markers,
+    verification_fetch_limit,
     run_learning_cycle,
 )
 
@@ -106,9 +107,17 @@ def test_prediction_markers_are_chart_ready():
         con.close()
 
 
+def test_verification_fetch_limit_expands_for_old_forecasts():
+    now = 1_700_000_000_000 + 200 * 15 * 60 * 1000
+    limit = verification_fetch_limit(start_ts=1_700_000_000_000, interval='15m', horizon_bars=4, now_ts=now)
+    assert limit >= 210
+    assert limit <= 1000
+
+
 if __name__ == '__main__':
     test_prediction_is_created_from_snapshot_features()
     test_autopilot_saves_and_verifies_prediction_target()
     test_run_learning_cycle_saves_prediction_and_returns_stats()
     test_prediction_markers_are_chart_ready()
+    test_verification_fetch_limit_expands_for_old_forecasts()
     print('OK learning autopilot tests passed')

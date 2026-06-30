@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from trader_assistant.simulation import simulate_trade_path
 from trader_assistant.forecast_outcomes import outcome_badge
+from trader_assistant.forecast_due import interval_seconds
 
 
 def _now():
@@ -138,13 +139,29 @@ def _find_start_index(candles, start_ts):
     return idx
 
 
+def verification_fetch_limit(start_ts, interval, horizon_bars, now_ts=None, min_limit=80, max_limit=1000):
+    if start_ts is None:
+        return int(min_limit)
+    try:
+        start_ms = int(start_ts)
+        if start_ms < 10_000_000_000:
+            start_ms *= 1000
+        now_ms = int(now_ts if now_ts is not None else datetime.now(timezone.utc).timestamp() * 1000)
+        elapsed_bars = max(0, int((now_ms - start_ms) / (interval_seconds(interval) * 1000)))
+        needed = elapsed_bars + int(horizon_bars or 0) + 20
+        return max(int(min_limit), min(int(max_limit), int(needed)))
+    except Exception:
+        return int(min_limit)
+
+
 def verify_open_predictions(con, klines_fetcher):
     rows = con.execute('select * from predictions where verified_outcome is null order by id asc').fetchall()
     verified = 0
     pending = 0
     for row in rows:
         p = dict(row)
-        candles = klines_fetcher(p['symbol'], p['interval'], max(80, int(p['horizon_bars']) + 20))
+        fetch_limit = verification_fetch_limit(p.get('start_ts'), p.get('interval'), p.get('horizon_bars'))
+        candles = klines_fetcher(p['symbol'], p['interval'], fetch_limit)
         start_idx = _find_start_index(candles, p['start_ts'])
         if start_idx is None or len(candles) <= start_idx + int(p['horizon_bars']):
             pending += 1
