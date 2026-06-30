@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from trader_assistant.forecast_outcomes import classify_forecast_outcome
+
 
 def _row_to_forecast(row):
     return {
@@ -21,6 +23,8 @@ def build_forecast_detail(con, forecast_id):
     if not row:
         return {'mode': 'forecast_detail', 'error': 'not_found', 'forecast_id': int(forecast_id)}
     forecast = _row_to_forecast(row)
+    outcome_summary = classify_forecast_outcome(dict(row))
+    forecast['outcome_badge'] = outcome_summary['badge']
     rr = None
     try:
         if row['entry'] is not None and row['stop'] is not None and row['target'] is not None:
@@ -44,6 +48,10 @@ def build_forecast_detail(con, forecast_id):
         'verified_outcome': row['verified_outcome'],
         'correct_direction': row['correct_direction'],
         'verified_at': row['verified_at'],
+        'outcome_badge': outcome_summary['badge'],
+        'actual_direction': outcome_summary.get('actual_direction'),
+        'final_close': outcome_summary.get('final_close'),
+        'bars_held': outcome_summary.get('bars_held'),
     }
     explanation = [
         f"Forecast #{row['id']} expected {forecast['direction']} on {row['symbol']} {row['interval']} with status {forecast['status']}.",

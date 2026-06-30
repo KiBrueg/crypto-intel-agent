@@ -5,6 +5,7 @@ from collections import Counter
 from datetime import datetime, timezone
 
 from trader_assistant.simulation import simulate_trade_path
+from trader_assistant.forecast_outcomes import outcome_badge
 
 
 def _now():
@@ -110,8 +111,7 @@ def prediction_markers(con, symbol=None, interval=None, limit=80):
             continue
         outcome = r['verified_outcome'] or 'pending'
         direction = r['predicted_direction'] or 'mixed'
-        is_good = r['correct_direction'] == 1 or outcome == 'target'
-        is_bad = r['correct_direction'] == 0 or outcome in ('stopped', 'failed')
+        badge = outcome_badge(outcome, r['correct_direction'])
         markers.append({
             'id': r['id'],
             'symbol': r['symbol'],
@@ -119,9 +119,10 @@ def prediction_markers(con, symbol=None, interval=None, limit=80):
             'time': int(int(r['start_ts']) / 1000),
             'position': 'belowBar' if direction == 'up' else 'aboveBar',
             'shape': 'arrowUp' if direction == 'up' else ('arrowDown' if direction == 'down' else 'circle'),
-            'color': '#3f7a56' if is_good else ('#b54a3a' if is_bad else '#D2694E'),
-            'text': f"#{r['id']} {direction} {outcome}",
+            'color': badge['color'],
+            'text': f"#{r['id']} {direction} {badge['label']}",
             'outcome': outcome,
+            'outcome_badge': badge,
             'entry': r['entry'],
         })
     return list(reversed(markers))

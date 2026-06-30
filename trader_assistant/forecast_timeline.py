@@ -2,18 +2,13 @@ from __future__ import annotations
 
 from collections import Counter
 
+from trader_assistant.forecast_outcomes import outcome_badge
+
 
 def _event_from_row(row):
     outcome = row['verified_outcome'] or 'pending'
     correct = row['correct_direction']
-    if outcome == 'pending':
-        display = 'pending'
-    elif correct == 1 or outcome == 'target':
-        display = 'success'
-    elif correct == 0 or outcome in ('stopped', 'failed'):
-        display = 'failed'
-    else:
-        display = outcome
+    badge = outcome_badge(outcome, correct)
     return {
         'id': row['id'],
         'created_at': row['created_at'],
@@ -21,8 +16,9 @@ def _event_from_row(row):
         'interval': row['interval'],
         'direction': row['predicted_direction'] or 'mixed',
         'status': row['predicted_status'] or 'watch',
-        'display_status': display,
+        'display_status': badge['display_status'],
         'outcome': outcome,
+        'outcome_badge': badge,
         'correct_direction': correct,
         'entry': row['entry'],
         'stop': row['stop'],
