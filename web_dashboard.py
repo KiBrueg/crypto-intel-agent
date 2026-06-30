@@ -37,6 +37,7 @@ from trader_assistant.chart_overlays import build_chart_overlays
 from trader_assistant.autopilot_status import build_autopilot_status
 from trader_assistant.forecast_timeline import build_forecast_timeline
 from trader_assistant.forecast_details import build_forecast_detail
+from trader_assistant.daemon_control import ensure_learning_daemon
 
 DEFAULT_WATCHLIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'LINKUSDT', 'DOGEUSDT', 'ADAUSDT']
 DEFAULT_TIMEFRAMES = ('15m', '1h', '4h')
@@ -522,6 +523,14 @@ def main():
     ap.add_argument('--host', default='127.0.0.1')
     ap.add_argument('--port', type=int, default=8765)
     args = ap.parse_args()
+    try:
+        daemon = ensure_learning_daemon()
+        if daemon.get('started'):
+            print('Learning Autopilot daemon: started')
+        else:
+            print(f"Learning Autopilot daemon: {daemon.get('reason')}")
+    except Exception as exc:
+        print(f'Learning Autopilot daemon: start skipped ({exc})')
     srv = ThreadingHTTPServer((args.host, args.port), DashboardHandler)
     print(f'Crypto Trader Assistant dashboard: http://{args.host}:{args.port}')
     srv.serve_forever()

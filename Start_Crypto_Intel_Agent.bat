@@ -10,10 +10,8 @@ cd /d "%PROJECT_DIR%" || (
   exit /b 1
 )
 
-if not exist "%PROJECT_DIR%\data\learning_autopilot.lock" (
-  echo Starting Auto Learner in background...
-  start "Crypto Intel Auto Learner" /min cmd /k "cd /d "%PROJECT_DIR%" && python learning_daemon.py --symbols BTCUSDT,ETHUSDT,SOLUSDT --interval 15m --horizon 4 --sleep 900"
-)
+echo Ensuring Auto Learner is running...
+start "Crypto Intel Auto Learner" /min "%PROJECT_DIR%\Start_Learning_Autopilot.bat"
 
 netstat -ano | findstr /R /C:":%PORT% .*LISTENING" >nul 2>nul
 if %errorlevel%==0 (
