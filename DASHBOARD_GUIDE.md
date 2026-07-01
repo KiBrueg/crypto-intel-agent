@@ -38,6 +38,7 @@ http://127.0.0.1:8765
 - Compact Graph Context: token-budgeted graph summary used to give AI only high-signal memory instead of raw rows/candles.
 - Simulation Lab: rolling historical simulations that score target/stop/timeout and suggest calibration changes.
 - Learning Autopilot: saves current live forecasts, later verifies them against future candles using an adaptive candle window for overdue predictions, updates accuracy statistics and shows daemon status/heartbeat, pending/verified counts, last forecast, forecast timeline, canonical outcome badges, verification due/overdue ETA and detailed forecast cards. The dashboard auto-starts the background learner on launch.
+- Market Mind Cards: early web MVP for simple card-based training. Users choose a drill, see compact chance/risk/RR/FOMO cockpit, choose ↑ Growth / ↓ Fall / Skip plus risk size, and compare with AI agreement without treating human choices as ground truth.
 - Macro/RSS News Impact: headline-based indicator for Fed/rates/inflation/geopolitics/oil/regulation shocks with bullish/base/bearish scenarios.
 - Smart Money Concepts: liquidity sweeps, FVG/imbalances, break of structure and order-block candidates.
 - Candlestick chart with detected levels.
