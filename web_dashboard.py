@@ -38,6 +38,8 @@ from trader_assistant.autopilot_status import build_autopilot_status
 from trader_assistant.forecast_timeline import build_forecast_timeline
 from trader_assistant.forecast_details import build_forecast_detail
 from trader_assistant.daemon_control import ensure_learning_daemon
+from trader_assistant.mind_card_modes import available_mind_card_modes, get_mind_card_mode
+from trader_assistant.mind_cards import build_mind_card, save_mind_card, record_user_choice, mind_card_detail
 
 DEFAULT_WATCHLIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'LINKUSDT', 'DOGEUSDT', 'ADAUSDT']
 DEFAULT_TIMEFRAMES = ('15m', '1h', '4h')
@@ -247,6 +249,7 @@ def render_dashboard_html():
       <div class="chart" id="chart"></div>
       <div class="market-links"><a id="cmcLink" class="chip" href="https://coinmarketcap.com/currencies/bitcoin/" target="_blank" rel="noopener">Open CoinMarketCap reference</a><a id="tvLink" class="chip" href="https://www.tradingview.com/chart/?symbol=BINANCE:BTCUSDT" target="_blank" rel="noopener">Open TradingView chart</a></div>
       <div id="chartoverlayinfo" class="chart-overlay-info small"></div>
+      <div class="card section" style="margin-top:16px"><h3>Market Mind Cards</h3><p class="small">Simple training shell: choose ↑ Growth / ↓ Fall / Skip, compare with AI, and later verify against real market outcomes.</p><div class="row"><div><label class="small">Drill</label><select id="mindcardmode"><option value="mixed">Смешанная тренировка</option><option value="quick_scalps">Быстрые движения</option><option value="breakout_reads">Пробои</option><option value="fakeout_defense">Ложные пробои</option><option value="vwap_level_reclaim">Отскоки / возврат к уровню</option><option value="order_book_sense">Стакан и ликвидность</option></select></div><div><label class="small">Risk size</label><select id="mindcardsize"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select></div></div><button class="btn secondary" onclick="loadMindCard()">New Mind Card</button><div id="mindcardcockpit" class="metrics" style="margin-top:12px"></div><div id="mindcardbody" class="small"></div><div class="row"><button class="btn secondary" onclick="chooseMindCard('up')">↑ Growth</button><button class="btn secondary" onclick="chooseMindCard('down')">↓ Fall</button></div><button class="btn secondary" onclick="chooseMindCard('skip')">Skip / unclear</button></div>
       <div class="card section" style="margin-top:16px"><h3>AI Desk Notes</h3><div id="aidesk"></div></div>
       <div class="card section" style="margin-top:16px"><h3>Five-Lens Idea Review</h3><div id="fivelens"></div></div>
       <div class="card section" style="margin-top:16px"><h3>Council Verdict</h3><div id="council"></div></div>
@@ -272,7 +275,7 @@ def render_dashboard_html():
 </div>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <script>
-const $=id=>document.getElementById(id); let lastSnapshot=null, autoTimer=null, lastSetupId=null;
+const $=id=>document.getElementById(id); let lastSnapshot=null, autoTimer=null, lastSetupId=null, currentMindCard=null;
 function q(){{const p=new URLSearchParams(); ['symbol','interval','side','entry','stop','target'].forEach(id=>{{if($(id).value)p.set(id,$(id).value)}}); return p.toString();}}
 function fmt(x){{return x===null||x===undefined?'n/a':(typeof x==='number'?Number(x.toFixed(6)).toString():x)}}
 function li(items){{return items.map(x=>`<li>${{x}}</li>`).join('')}}
@@ -291,6 +294,10 @@ async function runLearningAutopilot(){{try{{$('learningautopilot').innerHTML='<p
 async function loadAutopilotStatus(){{try{{const [sr,tr]=await Promise.all([fetch('/api/autopilot/status'), fetch('/api/forecast/timeline?limit=8')]); const s=await sr.json(); const t=await tr.json(); renderAutopilotStatus(s); renderForecastTimeline(t); if(t.last_forecast) loadForecastDetail(t.last_forecast.id);}}catch(e){{}}}}
 async function loadForecastDetail(id){{try{{const r=await fetch('/api/forecast/detail?id='+encodeURIComponent(id)); const d=await r.json(); renderForecastDetail(d);}}catch(e){{}}}}
 async function scanNewsImpact(){{try{{$('newsimpact').innerHTML='<p class="small">Scanning RSS macro/news…</p>'; const r=await fetch('/api/news-impact?limit_per_feed=6'); const n=await r.json(); renderNewsImpact(n);}}catch(e){{$('newsimpact').innerHTML='<p class="error">'+(e.stack||e)+'</p>';}}}}
+async function loadMindCardModes(){{try{{const r=await fetch('/api/mind-card/modes'); const data=await r.json(); const sel=$('mindcardmode'); if(sel&&data.modes) sel.innerHTML=data.modes.map(m=>`<option value="${{m.key}}">${{m.label}}</option>`).join('');}}catch(e){{}}}}
+async function loadMindCard(){{try{{const mode=$('mindcardmode').value||'mixed'; const r=await fetch('/api/mind-card/next?mode='+encodeURIComponent(mode)+'&symbol='+encodeURIComponent($('symbol').value)+'&interval='+encodeURIComponent($('interval').value)); const card=await r.json(); if(card.error) throw new Error(card.error); currentMindCard=card; renderMindCard(card);}}catch(e){{$('mindcardbody').innerHTML='<p class="error">'+(e.stack||e)+'</p>';}}}}
+async function chooseMindCard(direction){{try{{if(!currentMindCard) await loadMindCard(); if(!currentMindCard||!currentMindCard.id)return; const size=direction==='skip'?'none':$('mindcardsize').value; const r=await fetch('/api/mind-card/choice',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{card_id:currentMindCard.id,direction,size}})}}); const d=await r.json(); if(d.error) throw new Error(d.error); currentMindCard=d; renderMindCard(d);}}catch(e){{$('mindcardbody').innerHTML='<p class="error">'+(e.stack||e)+'</p>';}}}}
+function renderMindCard(card){{const ai=card.ai_direction==='up'?'↑ Growth':(card.ai_direction==='down'?'↓ Fall':'Skip'); const user=card.user_direction?(card.user_direction==='up'?'↑ Growth':(card.user_direction==='down'?'↓ Fall':'Skip')):'not chosen'; const agreement=card.user_direction?(card.agreement_with_ai?'AI view matches':'AI view differs'):'choose your scenario'; $('mindcardcockpit').innerHTML=[['AI',ai,card.ai_direction==='up'?'good':(card.ai_direction==='down'?'bad':'warn')],['Potential','+'+fmt(card.potential_profit_pct)+'%','good'],['Risk','-'+fmt(card.risk_loss_pct)+'%','bad'],['R/R',fmt(card.risk_reward_ratio),'warn'],['AI confidence',Math.round((card.ai_confidence||0)*100)+'%',''],['FOMO',Math.round((card.fomo_score||0)*100)+'%','warn'],['Setup',card.setup_quality||'mixed',''],['Regime',card.market_regime||'mixed','']].map(m=>`<div class="metric"><div class="l">${{m[0]}}</div><div class="v ${{m[2]}}">${{m[1]}}</div></div>`).join(''); $('mindcardbody').innerHTML=`<p><b>${{card.exchange||'BINANCE'}} · ${{card.symbol}} · ${{card.interval}}</b></p><p>Your scenario: <b>${{user}}</b> · ${{agreement}}</p><p class="small">AI risk size: <b>${{card.ai_size}}</b>. Human choices are noisy coaching signals; market outcome is the learning ground truth.</p><ul class="list">${{(card.ai_reason||[]).map(x=>`<li>${{x}}</li>`).join('')}}</ul>`;}}
 function toggleAuto(){{if(autoTimer){{clearInterval(autoTimer);autoTimer=null}} if($('autorefresh').checked) autoTimer=setInterval(loadSnapshot,60000)}}
 function setLoading(){{ $('metrics').innerHTML='<div class="metric"><div class="l">Status</div><div class="v">Loading…</div></div>'; }}
 function showError(e){{$('metrics').innerHTML=`<div class="metric"><div class="l">Error</div><div class="v bad">Failed</div></div>`; $('tech').innerHTML=`<li class="error">${{e.stack||e}}</li>`}}
@@ -344,7 +351,7 @@ function drawChart(candles, levels, symbol, interval, rr, smc){{const el=$('char
  el.innerHTML='<canvas width="980" height="390" style="width:100%;height:390px"></canvas>'; const c=el.querySelector('canvas'), ctx=c.getContext('2d'), w=c.width,h=c.height; ctx.clearRect(0,0,w,h); ctx.fillStyle='#fafaf8'; ctx.fillRect(0,0,w,h); const highs=candles.map(x=>x.high), lows=candles.map(x=>x.low); let hi=Math.max(...highs), lo=Math.min(...lows); const range=(hi-lo)||1; hi+=range*.08; lo-=range*.08; const span=hi-lo||1; const left=54,right=86,top=34,bottom=38; const plotW=w-left-right, plotH=h-top-bottom; const X=i=>left+i*plotW/Math.max(1,candles.length-1), Y=p=>top+(hi-p)/span*plotH;
  ctx.strokeStyle='rgba(45,45,45,.10)'; ctx.lineWidth=1; ctx.font='11px Source Code Pro'; ctx.fillStyle='rgba(45,45,45,.58)'; ctx.textBaseline='middle'; ctx.textAlign='left'; for(let i=0;i<=6;i++){{const price=lo+(span*i/6), y=Y(price); ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(w-right,y); ctx.stroke(); ctx.fillText(fmt(price), w-right+9, y);}} ctx.textBaseline='top'; ctx.textAlign='center'; const ticks=6; for(let i=0;i<=ticks;i++){{const idx=Math.min(candles.length-1,Math.round(i*(candles.length-1)/ticks)); const x=X(idx); ctx.strokeStyle='rgba(45,45,45,.075)'; ctx.beginPath(); ctx.moveTo(x,top); ctx.lineTo(x,h-bottom); ctx.stroke(); const rawTs=candles[idx].ts||candles[idx].open_time||candles[idx].time; const t=rawTs?new Date(Number(rawTs)).toISOString().slice(5,16).replace('T',' '):String(idx); ctx.fillStyle='rgba(45,45,45,.56)'; ctx.fillText(t, x, h-bottom+10);}} ctx.strokeStyle='rgba(45,45,45,.22)'; ctx.strokeRect(left,top,plotW,plotH); const all=[...(levels.support_resistance||[]),...Object.values(levels.fibonacci||{{}}),...Object.values(levels.pivots||{{}})].filter(x=>typeof x==='number'); all.forEach((lv,i)=>{{const y=Y(lv); if(y<top||y>h-bottom)return; ctx.strokeStyle=i%2?'rgba(210,105,78,.52)':'rgba(210,105,29,.34)'; ctx.setLineDash([5,5]); ctx.beginPath(); ctx.moveTo(left,y); ctx.lineTo(w-right,y); ctx.stroke(); ctx.setLineDash([]);}}); const candleW=Math.max(3,Math.min(9,plotW/candles.length*.62)); candles.forEach((k,i)=>{{const x=X(i), o=Y(k.open), cl=Y(k.close), hh=Y(k.high), ll=Y(k.low), up=k.close>=k.open; ctx.strokeStyle=up?'#3f7a56':'#b54a3a'; ctx.fillStyle=ctx.strokeStyle; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(x,hh); ctx.lineTo(x,ll); ctx.stroke(); ctx.fillRect(x-candleW/2,Math.min(o,cl),candleW,Math.max(1,Math.abs(cl-o)));}}); const last=candles[candles.length-1], py=Y(last.close); ctx.strokeStyle='#D2694E'; ctx.setLineDash([6,4]); ctx.beginPath(); ctx.moveTo(left,py); ctx.lineTo(w-right,py); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle='#D2694E'; ctx.fillRect(w-right+5,py-10,72,20); ctx.fillStyle='#fffdfa'; ctx.font='11px Source Code Pro'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(fmt(last.close), w-right+41, py);
 }}
-loadSnapshot();
+loadMindCardModes(); loadSnapshot();
 </script></body></html>'''
 
 
@@ -411,6 +418,29 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return self._send(200, json.dumps(build_multi_timeframe_payload(symbol), ensure_ascii=False))
             if parsed.path == '/api/watchlist':
                 return self._send(200, json.dumps(build_watchlist_payload(), ensure_ascii=False))
+            if parsed.path == '/api/mind-card/modes':
+                return self._send(200, json.dumps({'modes': available_mind_card_modes()}, ensure_ascii=False))
+            if parsed.path == '/api/mind-card/next':
+                mode_key = (qs.get('mode') or ['mixed'])[0]
+                mode = get_mind_card_mode(mode_key)
+                symbol = (qs.get('symbol') or [mode['symbols'][0]])[0].upper()
+                interval = (qs.get('interval') or [mode['interval']])[0]
+                snapshot = build_snapshot_payload(symbol=symbol, interval=interval, limit=120)
+                card = build_mind_card(snapshot, mode=mode['key'], horizon_bars=mode['horizon_bars'])
+                con = init_journal(DEFAULT_DB)
+                try:
+                    card_id = save_mind_card(con, card)
+                    detail = mind_card_detail(con, card_id)
+                    detail['mode_label'] = mode['label']
+                    return self._send(200, json.dumps(detail, ensure_ascii=False))
+                finally:
+                    con.close()
+            if parsed.path == '/api/mind-card/detail':
+                con = init_journal(DEFAULT_DB)
+                try:
+                    return self._send(200, json.dumps(mind_card_detail(con, int((qs.get('id') or ['0'])[0])), ensure_ascii=False))
+                finally:
+                    con.close()
             if parsed.path == '/api/simulation':
                 symbol = (qs.get('symbol') or ['BTCUSDT'])[0].upper()
                 interval = (qs.get('interval') or ['1h'])[0]
@@ -503,6 +533,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
             body = self.rfile.read(length).decode('utf-8') if length else '{}'
             if parsed.path in ('/api/journal/save', '/api/journal/outcome', '/api/council/save', '/api/graph-context'):
                 return self._send(200, json.dumps(handle_journal_api('POST', parsed.path, qs, body), ensure_ascii=False))
+            if parsed.path == '/api/mind-card/choice':
+                data = json.loads(body or '{}')
+                con = init_journal(DEFAULT_DB)
+                try:
+                    detail = record_user_choice(con, data.get('card_id'), data.get('direction'), data.get('size', 'none'))
+                    return self._send(200, json.dumps(detail, ensure_ascii=False))
+                finally:
+                    con.close()
             return self._send(404, json.dumps({'error': 'not found'}))
         except Exception as e:
             return self._send(500, json.dumps({'error': str(e), 'trace': traceback.format_exc()}))
