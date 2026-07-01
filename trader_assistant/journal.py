@@ -89,6 +89,84 @@ def init_journal(path=DEFAULT_DB):
             result_json text
         )
     ''')
+    con.execute('''
+        create table if not exists mind_card_sessions (
+            id integer primary key autoincrement,
+            created_at text not null,
+            mode text not null,
+            exchange text not null default 'BINANCE',
+            symbols text not null,
+            interval text not null,
+            status text not null default 'active',
+            completed_at text
+        )
+    ''')
+    con.execute('''
+        create table if not exists mind_cards (
+            id integer primary key autoincrement,
+            session_id integer,
+            created_at text not null,
+            exchange text not null default 'BINANCE',
+            symbol text not null,
+            interval text not null,
+            mode text not null,
+            snapshot_ts integer,
+            horizon_bars integer not null,
+            chart_window_json text not null,
+            order_book_json text,
+            features_json text not null,
+            ai_direction text not null,
+            ai_size text not null,
+            ai_confidence real,
+            ai_reason_json text,
+            potential_profit_pct real,
+            risk_loss_pct real,
+            risk_reward_ratio real,
+            fomo_score real,
+            setup_quality text,
+            market_regime text,
+            status text not null default 'unanswered',
+            user_direction text,
+            user_size text,
+            user_decided_at text,
+            agreement_with_ai integer,
+            verified_at text,
+            actual_outcome text,
+            actual_direction text,
+            user_scenario_confirmed integer,
+            ai_scenario_confirmed integer,
+            user_r_score real,
+            ai_r_score real,
+            focus_area text,
+            coach_note text,
+            foreign key(session_id) references mind_card_sessions(id)
+        )
+    ''')
+    con.execute('''
+        create table if not exists mind_card_learning_events (
+            id integer primary key autoincrement,
+            created_at text not null,
+            card_id integer not null,
+            mode text not null,
+            symbol text not null,
+            interval text not null,
+            feature_hash text not null,
+            ai_direction text not null,
+            user_direction text,
+            actual_direction text,
+            ai_scenario_confirmed integer,
+            user_scenario_confirmed integer,
+            setup_quality text,
+            market_regime text,
+            focus_area text,
+            fomo_score real,
+            risk_reward_ratio real,
+            ai_confidence real,
+            actual_outcome text,
+            lesson_json text,
+            foreign key(card_id) references mind_cards(id)
+        )
+    ''')
     con.commit()
     return con
 
