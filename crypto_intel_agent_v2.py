@@ -71,7 +71,10 @@ def render_html(md):
         else: body.append(f'<p>{line}</p>')
     return '<!doctype html><html><head><meta charset="utf-8"><title>Crypto Intel Agent</title><style>body{background:#070b13;color:#e6edf7;font:16px Arial;padding:30px}main{max-width:980px;margin:auto;background:#111827;border-radius:22px;padding:30px}h2{color:#7dd3fc}li{background:#172033;margin:8px 0;padding:10px;border-radius:10px;list-style:none}</style></head><body><main>'+'\n'.join(body)+'</main></body></html>'
 def main():
-    p=argparse.ArgumentParser(); p.add_argument('--vs',default='usd'); p.add_argument('--per-page',type=int,default=80); p.add_argument('--db',default='data/crypto_intel.sqlite3'); p.add_argument('--out',default='reports/crypto_intel_report.md'); p.add_argument('--html',default='reports/crypto_intel_report.html')
+    p=argparse.ArgumentParser(); p.add_argument('--vs',default='usd'); p.add_argument('--per-page',type=int,default=80); p.add_argument('--db',default='data/crypto_intel.sqlite3'); p.add_argument('--out',default='reports/crypto_intel_report.md'); p.add_argument('--html',default='reports/crypto_intel_report.html'); p.add_argument('--telegram',action='store_true',help='Send the report to Telegram (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID)')
     a=p.parse_args(); Path(a.db).parent.mkdir(parents=True,exist_ok=True); Path(a.out).parent.mkdir(parents=True,exist_ok=True); Path(a.html).parent.mkdir(parents=True,exist_ok=True)
     ts=dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M UTC'); coins=fetch_markets(a.vs,a.per_page); con=init_db(a.db); saved=save_snapshot(con,coins,ts); alerts=detect_alerts(coins); md=render_markdown(coins,alerts,ts,a.vs); Path(a.out).write_text(md,encoding='utf-8'); Path(a.html).write_text(render_html(md),encoding='utf-8'); print(f'OK saved={saved} alerts={len(alerts)} db={a.db} markdown={a.out} html={a.html}\n'+md)
+    if a.telegram:
+        from telegram_notify import load_env, notify_safe
+        load_env(); notify_safe(md)
 if __name__=='__main__': main()

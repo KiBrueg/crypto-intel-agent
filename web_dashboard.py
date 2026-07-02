@@ -40,6 +40,7 @@ from trader_assistant.forecast_details import build_forecast_detail
 from trader_assistant.daemon_control import ensure_learning_daemon
 from trader_assistant.mind_card_modes import available_mind_card_modes, get_mind_card_mode
 from trader_assistant.mind_cards import build_mind_card, save_mind_card, record_user_choice, mind_card_detail
+from telegram_notify import load_env, send_telegram_message
 
 DEFAULT_WATCHLIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'LINKUSDT', 'DOGEUSDT', 'ADAUSDT']
 DEFAULT_TIMEFRAMES = ('15m', '1h', '4h')
@@ -239,6 +240,7 @@ def render_dashboard_html():
       <button class="btn" onclick="loadSnapshot()">Refresh dashboard</button>
       <button class="btn secondary" onclick="calcRR()">Calculate R/R only</button>
       <button class="btn secondary" onclick="exportJSON()">Export JSON</button>
+      <button class="btn secondary" onclick="sendTelegram()">Send to Telegram</button>
       <button class="btn secondary" onclick="saveSetup()">Save Setup</button>
       <button class="btn secondary" onclick="saveCouncil()">Ask Council + Save Verdict</button>
       <label><input id="autorefresh" type="checkbox" style="width:auto;margin-right:8px" onchange="toggleAuto()">Auto refresh 60s</label>
@@ -283,6 +285,7 @@ function setSymbol(s){{$('symbol').value=s; loadSnapshot();}}
 async function loadSnapshot(){{setLoading(); try{{const [sr, mr]=await Promise.all([fetch('/api/snapshot?'+q()), fetch('/api/multi-timeframe?symbol='+encodeURIComponent($('symbol').value))]); const data=await sr.json(); const mtf=await mr.json(); if(data.error) throw new Error(data.error); if(mtf.error) throw new Error(mtf.error); data.multi_timeframe=mtf; render(data);}}catch(e){{showError(e)}}}}
 async function calcRR(){{try{{const p=new URLSearchParams(q()); const r=await fetch('/api/risk-reward?'+p.toString()); const rr=await r.json(); if(rr.error) throw new Error(rr.error); renderRR(rr);}}catch(e){{showError(e)}}}}
 function exportJSON(){{if(!lastSnapshot)return; const blob=new Blob([JSON.stringify(lastSnapshot,null,2)],{{type:'application/json'}}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`crypto-trader-snapshot-${{lastSnapshot.symbol}}.json`; a.click(); URL.revokeObjectURL(a.href);}}
+async function sendTelegram(){{if(!lastSnapshot){{alert('Load a snapshot first');return;}} const s=lastSnapshot; const lines=[`${{s.symbol}} ${{s.interval||''}}`,`Price: ${{fmt(s.price)}}`,`Regime: ${{s.regime||'n/a'}}`,`R/R: ${{s.risk_reward?s.risk_reward.risk_reward_ratio:'n/a'}}`,'Not financial advice.']; const r=await fetch('/api/send-telegram',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{text:lines.join('\\n')}})}}); const data=await r.json(); alert(data.ok?'Sent to Telegram':`Failed: ${{data.error||'unknown error'}}`);}}
 async function saveSetup(){{if(!lastSnapshot)return; const r=await fetch('/api/journal/save',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{snapshot:lastSnapshot,notes:'saved from dashboard'}})}}); const data=await r.json(); if(data.ok){{lastSetupId=data.setup_id; await loadJournalStats();}}}}
 async function saveCouncil(){{if(!lastSnapshot)return; const r=await fetch('/api/council/save',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{snapshot:lastSnapshot,council:lastSnapshot.council,notes:'ask council from dashboard'}})}}); const data=await r.json(); if(data.ok){{alert(`Council verdict saved #${{data.review_id}}`);}}}}
 async function markLastOutcome(outcome){{if(!lastSetupId){{alert('Save setup first');return;}} await fetch('/api/journal/outcome',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{setup_id:lastSetupId,outcome}})}}); await loadJournalStats();}}
@@ -541,6 +544,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     return self._send(200, json.dumps(detail, ensure_ascii=False))
                 finally:
                     con.close()
+            if parsed.path == '/api/send-telegram':
+                data = json.loads(body or '{}')
+                text = data.get('text') or ''
+                if not text:
+                    return self._send(400, json.dumps({'error': 'text is required'}))
+                load_env()
+                try:
+                    result = send_telegram_message(text)
+                    return self._send(200, json.dumps({'ok': bool(result.get('ok'))}, ensure_ascii=False))
+                except Exception as e:
+                    return self._send(200, json.dumps({'ok': False, 'error': str(e)}, ensure_ascii=False))
             return self._send(404, json.dumps({'error': 'not found'}))
         except Exception as e:
             return self._send(500, json.dumps({'error': str(e), 'trace': traceback.format_exc()}))

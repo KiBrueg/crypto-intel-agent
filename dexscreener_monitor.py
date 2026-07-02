@@ -69,7 +69,10 @@ def render_html(md):
         else: body.append(f'<p>{line}</p>')
     return '<!doctype html><html><head><meta charset="utf-8"><title>DexScreener Monitor</title><style>body{background:#090d16;color:#e6edf7;font:16px Arial;padding:30px}main{max-width:1050px;margin:auto;background:#111827;border-radius:22px;padding:30px}h2{color:#a7f3d0}li{background:#172033;margin:8px 0;padding:10px;border-radius:10px;list-style:none}</style></head><body><main>'+'\n'.join(body)+'</main></body></html>'
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument('--query',default='SOL'); ap.add_argument('--limit',type=int,default=30); ap.add_argument('--db',default='data/dexscreener.sqlite3'); ap.add_argument('--out',default='reports/dexscreener_report.md'); ap.add_argument('--html',default='reports/dexscreener_report.html')
+    ap=argparse.ArgumentParser(); ap.add_argument('--query',default='SOL'); ap.add_argument('--limit',type=int,default=30); ap.add_argument('--db',default='data/dexscreener.sqlite3'); ap.add_argument('--out',default='reports/dexscreener_report.md'); ap.add_argument('--html',default='reports/dexscreener_report.html'); ap.add_argument('--telegram',action='store_true',help='Send the report to Telegram (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID)')
     a=ap.parse_args(); Path(a.db).parent.mkdir(parents=True,exist_ok=True); Path(a.out).parent.mkdir(parents=True,exist_ok=True); Path(a.html).parent.mkdir(parents=True,exist_ok=True)
     ts=dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d %H:%M UTC'); pairs=fetch_pairs(a.query,a.limit); con=init_db(a.db); saved=save_pairs(con,a.query,pairs,ts); alerts=detect_alerts(pairs); md=render_markdown(a.query,pairs,alerts,ts); Path(a.out).write_text(md,encoding='utf-8'); Path(a.html).write_text(render_html(md),encoding='utf-8'); print(f'OK query={a.query} saved={saved} alerts={len(alerts)} db={a.db} markdown={a.out} html={a.html}\n'+md)
+    if a.telegram:
+        from telegram_notify import load_env, notify_safe
+        load_env(); notify_safe(md)
 if __name__=='__main__': main()
