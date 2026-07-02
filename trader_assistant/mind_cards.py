@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import random
 from datetime import datetime, timezone
 
 
@@ -121,6 +122,49 @@ def build_mind_card(snapshot, mode='mixed', exchange='BINANCE', horizon_bars=Non
         'setup_quality': setup_quality,
         'market_regime': _market_regime(snapshot),
     }
+def build_historical_mind_card(snapshot, mode='mixed', exchange='BINANCE', visible_candles=52, outcome_candles=8, seed=None):
+    candles = list(snapshot.get('candles') or [])
+    visible_candles = int(visible_candles or 52)
+    outcome_candles = int(outcome_candles or 8)
+    if len(candles) < visible_candles + outcome_candles + 1:
+        return build_mind_card(snapshot, mode=mode, exchange=exchange, horizon_bars=outcome_candles)
+    rng = random.Random(seed)
+    decision_idx = rng.randint(visible_candles - 1, len(candles) - outcome_candles - 1)
+    visible = candles[decision_idx - visible_candles + 1:decision_idx + 1]
+    future = candles[decision_idx + 1:decision_idx + 1 + outcome_candles]
+    decision_close = float(visible[-1].get('close') or 0)
+    future_close = float(future[-1].get('close') or decision_close)
+    change_pct = ((future_close - decision_close) / decision_close * 100.0) if decision_close else 0.0
+    direction = 'up' if change_pct > 0.05 else ('down' if change_pct < -0.05 else 'flat')
+    first_close = float(visible[0].get('close') or decision_close or 0)
+    trend = 'bullish' if decision_close > first_close else ('bearish' if decision_close < first_close else 'mixed')
+    closes = [float(c.get('close') or 0) for c in visible[-14:] if c.get('close') is not None]
+    gains = [max(0.0, closes[i] - closes[i - 1]) for i in range(1, len(closes))]
+    losses = [max(0.0, closes[i - 1] - closes[i]) for i in range(1, len(closes))]
+    avg_gain = sum(gains) / len(gains) if gains else 0.0
+    avg_loss = sum(losses) / len(losses) if losses else 0.0
+    rsi = 50.0 if not (avg_gain or avg_loss) else (100.0 if avg_loss == 0 else 100.0 - (100.0 / (1.0 + avg_gain / avg_loss)))
+    entry = decision_close
+    stop = min(c.get('low') or entry for c in visible[-8:]) if trend != 'bearish' else max(c.get('high') or entry for c in visible[-8:])
+    target = entry + abs(entry - stop) * (1 if trend != 'bearish' else -1)
+    hist_snapshot = dict(snapshot)
+    hist_snapshot['candles'] = visible
+    hist_snapshot['analysis'] = dict(snapshot.get('analysis') or {}, trend=trend, price=entry, rsi_14=round(rsi, 2))
+    hist_snapshot['risk_reward'] = dict(snapshot.get('risk_reward') or {}, entry=entry, stop=stop, target=target, risk_reward_ratio=1.0, valid=True)
+    card = build_mind_card(hist_snapshot, mode=mode, exchange=exchange, horizon_bars=outcome_candles)
+    card['training_kind'] = 'historical_known_outcome'
+    card['snapshot_ts'] = visible[-1].get('ts')
+    card['decision_ts'] = visible[-1].get('ts')
+    card['known_outcome'] = {
+        'direction': direction,
+        'change_pct': round(change_pct, 4),
+        'entry': entry,
+        'final_close': future_close,
+        'future_candles': outcome_candles,
+        'outcome_ts': future[-1].get('ts'),
+    }
+    card['features']['known_outcome_hidden'] = True
+    return card
 
 
 def save_mind_card(con, card, session_id=None):

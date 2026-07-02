@@ -5,7 +5,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from trader_assistant.journal import init_journal
-from trader_assistant.mind_cards import build_mind_card, save_mind_card, record_user_choice, mind_card_detail
+from trader_assistant.mind_cards import build_mind_card, save_mind_card, record_user_choice, mind_card_detail, build_historical_mind_card
 
 
 def candle(ts, open_, high, low, close, volume=100):
@@ -67,7 +67,35 @@ def test_save_card_and_record_user_choice():
             con.close()
 
 
+def test_historical_mind_cards_use_different_known_outcome_windows():
+    base = sample_snapshot()
+    candles = []
+    price = 100.0
+    for i in range(90):
+        drift = 0.45 if i < 30 else (-0.35 if i < 60 else 0.25)
+        open_ = price
+        close = price + drift
+        high = max(open_, close) + 0.4
+        low = min(open_, close) - 0.4
+        candles.append(candle(1000 + i * 60, open_, high, low, close, 100 + i))
+        price = close
+    base['candles'] = candles
+    base['analysis'] = {'trend': 'mixed', 'price': candles[-1]['close'], 'vwap': candles[-1]['close'], 'rsi_14': 50}
+
+    first = build_historical_mind_card(base, mode='mixed', seed=1, visible_candles=24, outcome_candles=6)
+    second = build_historical_mind_card(base, mode='mixed', seed=2, visible_candles=24, outcome_candles=6)
+
+    assert first['training_kind'] == 'historical_known_outcome'
+    assert first['decision_ts'] != second['decision_ts']
+    assert first['chart_window'] != second['chart_window']
+    assert len(first['chart_window']) == 24
+    assert 'known_outcome' in first
+    assert first['known_outcome']['direction'] in ('up', 'down', 'flat')
+    assert first['known_outcome']['future_candles'] == 6
+
+
 if __name__ == '__main__':
     test_build_mind_card_has_compact_cockpit_fields()
     test_save_card_and_record_user_choice()
+    test_historical_mind_cards_use_different_known_outcome_windows()
     print('OK mind cards tests passed')

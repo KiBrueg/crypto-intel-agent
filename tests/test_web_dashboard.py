@@ -61,6 +61,7 @@ def test_dashboard_html_contains_core_controls_and_sections():
     assert 'miniOpenFullMindCard' in html
     assert 'More' in html
     assert '/api/mind-card/modes' in html
+    assert 'historical=1' in html
     assert '/api/mind-card/next' in html
     assert 'autopilotstatus' in html
     assert 'forecasttimeline' in html
