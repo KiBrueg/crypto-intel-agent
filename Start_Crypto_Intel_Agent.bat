@@ -1,6 +1,8 @@
 @echo off
 setlocal
-set "PROJECT_DIR=C:\Users\brueg\Desktop\projects\crypto-intel-agent"
+set "PROJECT_DIR=%~dp0"
+set "PROJECT_DIR=%PROJECT_DIR:~0,-1%"
+set "PYTHONIOENCODING=utf-8"
 set "PORT=8765"
 set "URL=http://127.0.0.1:%PORT%"
 

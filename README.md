@@ -120,13 +120,24 @@ Tests run offline — no network required.
 
 ## Configuration
 
-Copy `.env.example` to `.env` and fill in optionally:
+Copy `.env.example` to `.env` and fill in to enable Telegram delivery:
 
 ```env
-COINGECKO_API_KEY=   # Pro key for higher rate limits (free tier works)
-OPENROUTER_API_KEY=  # Only needed for live LLM summaries
-DB_PATH=crypto_intel.db
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_CHAT_ID=your_chat_id_here
 ```
+
+Get a bot token from [@BotFather](https://t.me/BotFather); get your chat ID by messaging the bot once and checking `https://api.telegram.org/bot<token>/getUpdates`.
+
+Send any report to Telegram:
+
+```bash
+python crypto_intel_agent_v2.py --telegram
+python dexscreener_monitor.py --query SOL --telegram
+python telegram_notify.py reports/pro_trader_report.md   # send an existing report file
+```
+
+The dashboard also has a **Send to Telegram** button that sends the current snapshot summary.
 
 See `config.example.json` for alert thresholds and query defaults.
 
@@ -187,6 +198,7 @@ Data is sourced from public APIs and presented for informational purposes only.
 crypto-intel-agent/
 ├── crypto_intel_agent_v2.py   # CoinGecko monitor + alerts + reports
 ├── dexscreener_monitor.py     # DexScreener DEX pair monitor
+├── telegram_notify.py         # Telegram Bot API sender (--telegram flag / standalone CLI)
 ├── llm_summary_stub.py        # Offline LLM summary prompt builder
 ├── tests/
 │   ├── test_crypto_intel_agent_v2.py
