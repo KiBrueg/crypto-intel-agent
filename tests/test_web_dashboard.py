@@ -62,6 +62,9 @@ def test_dashboard_html_contains_core_controls_and_sections():
     assert 'More' in html
     assert 'Market result' in html
     assert 'mindResultComparison' in html
+    assert 'miniResultHint' in html
+    assert 'AI thought' in html
+    assert 'Market went' in html
     assert '/api/mind-card/modes' in html
     assert 'historical=1' in html
     assert '/api/mind-card/next' in html
