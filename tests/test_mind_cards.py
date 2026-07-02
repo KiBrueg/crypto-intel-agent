@@ -94,8 +94,31 @@ def test_historical_mind_cards_use_different_known_outcome_windows():
     assert first['known_outcome']['future_candles'] == 6
 
 
+def test_historical_outcome_survives_user_choice_for_result_comparison():
+    with tempfile.TemporaryDirectory() as td:
+        con = init_journal(Path(td) / 'test.sqlite3')
+        try:
+            base = sample_snapshot()
+            candles = []
+            price = 100.0
+            for i in range(70):
+                open_ = price
+                close = price + (0.2 if i % 3 else -0.1)
+                candles.append(candle(1000 + i * 60, open_, max(open_, close) + 0.3, min(open_, close) - 0.3, close, 100 + i))
+                price = close
+            base['candles'] = candles
+            card = build_historical_mind_card(base, mode='mixed', seed=3, visible_candles=24, outcome_candles=6)
+            card_id = save_mind_card(con, card)
+            detail = record_user_choice(con, card_id, direction='up', size='medium')
+            assert detail['features']['known_outcome']['direction'] in ('up', 'down', 'flat')
+            assert detail['features']['known_outcome']['future_candles'] == 6
+        finally:
+            con.close()
+
+
 if __name__ == '__main__':
     test_build_mind_card_has_compact_cockpit_fields()
     test_save_card_and_record_user_choice()
     test_historical_mind_cards_use_different_known_outcome_windows()
+    test_historical_outcome_survives_user_choice_for_result_comparison()
     print('OK mind cards tests passed')

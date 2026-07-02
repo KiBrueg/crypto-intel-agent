@@ -164,6 +164,7 @@ def build_historical_mind_card(snapshot, mode='mixed', exchange='BINANCE', visib
         'outcome_ts': future[-1].get('ts'),
     }
     card['features']['known_outcome_hidden'] = True
+    card['features']['known_outcome'] = card['known_outcome']
     return card
 
 
