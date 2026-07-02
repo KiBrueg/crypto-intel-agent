@@ -55,6 +55,9 @@ def test_dashboard_html_contains_core_controls_and_sections():
     assert 'Learning Autopilot' in html
     assert 'Market Mind Cards' in html
     assert 'mindcardcockpit' in html
+    assert 'Mini Market Cards' in html
+    assert 'miniCardStack' in html
+    assert 'miniChooseMindCard' in html
     assert '/api/mind-card/modes' in html
     assert '/api/mind-card/next' in html
     assert 'autopilotstatus' in html
