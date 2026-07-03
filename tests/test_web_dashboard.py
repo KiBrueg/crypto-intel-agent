@@ -122,6 +122,27 @@ def test_pattern_guides_have_visual_candlestick_charts_not_only_text():
         assert 'Flag / Pennant visual' in html
 
 
+def test_pattern_guides_visualize_inverse_cup_and_harmonics_too():
+    dashboard = render_dashboard_html()
+    trainer = render_trainer_html()
+    expected_visuals = [
+        'Inverse Head and Shoulders visual',
+        'Cup and Handle visual',
+        'Gartley harmonic visual',
+        'Butterfly harmonic visual',
+        'Bat / Crab harmonic visual',
+        'ABCD harmonic visual',
+        'Cypher harmonic visual',
+        'PRZ harmonic visual',
+    ]
+    for html in (dashboard, trainer):
+        for label in expected_visuals:
+            assert label in html
+        assert html.count('pattern-visual') >= 12
+        assert 'harmonic-leg' in html
+        assert 'prz-zone' in html
+
+
 def test_trainer_html_is_sellable_clean_training_page():
     html = render_trainer_html()
     assert '<!doctype html>' in html.lower()
@@ -252,6 +273,7 @@ if __name__ == '__main__':
     test_dashboard_adds_world_news_as_general_mind_card_factor()
     test_dashboard_has_pattern_help_button_and_abbreviation_faq()
     test_pattern_guides_have_visual_candlestick_charts_not_only_text()
+    test_pattern_guides_visualize_inverse_cup_and_harmonics_too()
     test_trainer_html_is_sellable_clean_training_page()
     test_trainer_chat_reply_uses_card_context_and_safe_tone()
     test_landing_html_contains_demo_and_sales_assets()
