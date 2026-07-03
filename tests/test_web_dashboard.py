@@ -120,6 +120,11 @@ def test_trainer_html_is_sellable_clean_training_page():
     assert 'finishTrainerSession' in html
     assert 'Join pilot waitlist' in html
     assert 'Copy share text' in html
+    assert 'showTrainerGuide' in html
+    assert 'trainerGuidePanel' in html
+    assert 'Pattern cheat sheet' in html
+    assert 'Графические паттерны' in html
+    assert 'FAQ по сокращениям' in html
     assert '/api/mind-card/next?historical=1' in html
 
 
