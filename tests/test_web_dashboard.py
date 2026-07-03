@@ -4,7 +4,8 @@ import sys
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from web_dashboard import (
-    render_dashboard_html, build_snapshot_payload, build_risk_reward_payload,
+    render_dashboard_html, render_trainer_html, render_landing_html,
+    build_snapshot_payload, build_risk_reward_payload,
     classify_rr_quality, build_multi_timeframe_payload, DEFAULT_WATCHLIST,
     load_dashboard_config, build_watchlist_payload,
 )
@@ -79,6 +80,57 @@ def test_dashboard_html_contains_core_controls_and_sections():
     assert '/api/multi-timeframe' in html
 
 
+def test_dashboard_has_pattern_help_button_and_abbreviation_faq():
+    html = render_dashboard_html()
+    assert 'showPatternGuide' in html
+    assert 'patternGuidePanel' in html
+    assert 'Pattern cheat sheet' in html
+    assert 'Графические паттерны' in html
+    assert 'Гармонические паттерны' in html
+    assert 'Head and Shoulders' in html
+    assert 'Cup and Handle' in html
+    assert 'Gartley' in html
+    assert 'Butterfly' in html
+    assert 'FAQ по сокращениям' in html
+    assert 'SMC = Smart Money Concepts' in html
+    assert 'R/R = Risk/Reward' in html
+    assert 'VWAP = Volume Weighted Average Price' in html
+    assert 'FOMO = Fear Of Missing Out' in html
+
+
+def test_trainer_html_is_sellable_clean_training_page():
+    html = render_trainer_html()
+    assert '<!doctype html>' in html.lower()
+    assert 'Market Mind Cards Trainer' in html
+    assert 'trainerSessionTarget' in html
+    assert 'trainerSessionStats' in html
+    assert 'trainerFinalSummary' in html
+    assert 'trainerShareText' in html
+    assert 'copyTrainerShare' in html
+    assert 'Mixed Session' in html
+    assert 'Breakout Reads' in html
+    assert 'Fakeout Defense' in html
+    assert 'VWAP Reclaims' in html
+    assert 'You vs AI vs Market' in html
+    assert 'research/backtesting only' in html
+    assert 'Start 10-card session' in html
+    assert 'Skip/Next' in html
+    assert 'Open full dashboard' in html
+
+
+def test_landing_html_contains_demo_and_sales_assets():
+    html = render_landing_html()
+    assert '<!doctype html>' in html.lower()
+    assert 'Train your market reading' in html
+    assert 'Watch demo' in html
+    assert 'For trading communities' in html
+    assert 'White-label pilot' in html
+    assert 'marketmindcards' in html.lower()
+    assert 'not a signal bot' in html.lower()
+    assert 'Telegram/Discord' in html
+    assert 'I built a small AI-assisted crypto chart trainer' in html
+
+
 def test_default_watchlist_has_major_pairs():
     assert 'BTCUSDT' in DEFAULT_WATCHLIST
     assert 'ETHUSDT' in DEFAULT_WATCHLIST
@@ -140,6 +192,9 @@ def test_risk_reward_payload_uses_entry_side_stop_target():
 
 if __name__ == '__main__':
     test_dashboard_html_contains_core_controls_and_sections()
+    test_dashboard_has_pattern_help_button_and_abbreviation_faq()
+    test_trainer_html_is_sellable_clean_training_page()
+    test_landing_html_contains_demo_and_sales_assets()
     test_default_watchlist_has_major_pairs()
     import tempfile
     with tempfile.TemporaryDirectory() as d:
