@@ -107,6 +107,21 @@ def test_dashboard_has_pattern_help_button_and_abbreviation_faq():
     assert 'FOMO = Fear Of Missing Out' in html
 
 
+def test_pattern_guides_have_visual_candlestick_charts_not_only_text():
+    dashboard = render_dashboard_html()
+    trainer = render_trainer_html()
+    for html in (dashboard, trainer):
+        assert 'pattern-visual' in html
+        assert '<svg' in html
+        assert 'class="candle' in html
+        assert 'neckline' in html
+        assert 'triangle-lines' in html
+        assert 'Head and Shoulders visual' in html
+        assert 'Double Top / Bottom visual' in html
+        assert 'Triangle visual' in html
+        assert 'Flag / Pennant visual' in html
+
+
 def test_trainer_html_is_sellable_clean_training_page():
     html = render_trainer_html()
     assert '<!doctype html>' in html.lower()
@@ -236,6 +251,7 @@ if __name__ == '__main__':
     test_dashboard_html_contains_core_controls_and_sections()
     test_dashboard_adds_world_news_as_general_mind_card_factor()
     test_dashboard_has_pattern_help_button_and_abbreviation_faq()
+    test_pattern_guides_have_visual_candlestick_charts_not_only_text()
     test_trainer_html_is_sellable_clean_training_page()
     test_trainer_chat_reply_uses_card_context_and_safe_tone()
     test_landing_html_contains_demo_and_sales_assets()
