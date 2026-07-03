@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from web_dashboard import (
     render_dashboard_html, render_trainer_html, render_landing_html,
-    build_snapshot_payload, build_risk_reward_payload,
+    build_snapshot_payload, build_risk_reward_payload, build_trainer_chat_reply,
     classify_rr_quality, build_multi_timeframe_payload, DEFAULT_WATCHLIST,
     load_dashboard_config, build_watchlist_payload,
 )
@@ -126,6 +126,29 @@ def test_trainer_html_is_sellable_clean_training_page():
     assert 'Графические паттерны' in html
     assert 'FAQ по сокращениям' in html
     assert '/api/mind-card/next?historical=1' in html
+    assert 'assistantBubble' in html
+    assert 'trainerAssistantPanel' in html
+    assert 'askTrainerAssistant' in html
+    assert '/api/trainer-chat' in html
+    assert 'ИИ помощник' in html
+
+
+def test_trainer_chat_reply_uses_card_context_and_safe_tone():
+    card = {
+        'symbol': 'BTCUSDT', 'interval': '1h', 'ai_direction': 'down',
+        'ai_confidence': 0.72, 'risk_reward_ratio': 1.8,
+        'risk_loss_pct': 2.1, 'potential_profit_pct': 3.8,
+        'setup_quality': 'clean', 'market_regime': 'bearish', 'fomo_score': 0.24,
+        'ai_reason': ['Trend context: bearish.', 'SMC bias: bearish.', 'VWAP rejection risk.'],
+        'known_outcome': {'direction': 'down', 'change_pct': -0.7},
+    }
+    reply = build_trainer_chat_reply('что означает R/R и почему ИИ думает падение?', card, {'mode': 'Fakeout Defense', 'stats': {'cards': 3}})
+    assert reply['ok'] is True
+    assert 'BTCUSDT' in reply['answer']
+    assert 'R/R' in reply['answer']
+    assert 'bearish' in reply['answer'] or 'пад' in reply['answer'].lower()
+    assert 'не финансовый совет' in reply['answer'].lower()
+    assert reply['topic'] in ('risk_reward', 'current_card', 'glossary')
 
 
 def test_landing_html_contains_demo_and_sales_assets():
@@ -204,6 +227,7 @@ if __name__ == '__main__':
     test_dashboard_html_contains_core_controls_and_sections()
     test_dashboard_has_pattern_help_button_and_abbreviation_faq()
     test_trainer_html_is_sellable_clean_training_page()
+    test_trainer_chat_reply_uses_card_context_and_safe_tone()
     test_landing_html_contains_demo_and_sales_assets()
     test_default_watchlist_has_major_pairs()
     import tempfile

@@ -441,6 +441,48 @@ def _read_web_asset(name):
     return (Path(__file__).with_name('web_assets') / name).read_text(encoding='utf-8')
 
 
+def build_trainer_chat_reply(question, card=None, session=None):
+    q = (question or '').strip()
+    card = card or {}
+    session = session or {}
+    symbol = card.get('symbol') or session.get('symbol') or 'this pair'
+    interval = card.get('interval') or session.get('interval') or 'current timeframe'
+    ai_dir = card.get('ai_direction') or 'skip'
+    direction_ru = {'up': 'рост / Growth', 'down': 'падение / Fall', 'skip': 'неясно / Skip', 'flat': 'флэт'}
+    topic = 'current_card'
+    ql = q.lower()
+    if any(x in ql for x in ['r/r', 'risk', 'reward', 'риск', 'прибыл', 'соотнош']):
+        topic = 'risk_reward'
+    elif any(x in ql for x in ['vwap', 'ema', 'rsi', 'atr', 'smc', 'fomo', 'bos', 'choch', 'сокращ']):
+        topic = 'glossary'
+    elif any(x in ql for x in ['паттерн', 'pattern', 'gartley', 'butterfly', 'triangle', 'flag']):
+        topic = 'pattern'
+    reasons = card.get('ai_reason') or []
+    reason_text = '; '.join(str(x) for x in reasons[:4]) or 'нет явных причин в карточке — смотри структуру, VWAP/EMA, объём и риск.'
+    rr = card.get('risk_reward_ratio')
+    conf = card.get('ai_confidence')
+    fomo = card.get('fomo_score')
+    outcome = card.get('known_outcome') or (card.get('features') or {}).get('known_outcome') or {}
+    parts = [
+        f'Смотрю текущую карточку {symbol} · {interval}.',
+        f'ИИ-сценарий: {direction_ru.get(ai_dir, ai_dir)}' + (f' с уверенностью ~{round(conf*100)}%.' if isinstance(conf, (int, float)) else '.'),
+    ]
+    if topic == 'risk_reward':
+        parts.append(f'R/R = Risk/Reward: сколько потенциальной прибыли приходится на 1 единицу риска. Здесь R/R: {rr if rr is not None else "n/a"}. Risk примерно {card.get("risk_loss_pct", "n/a")}% против potential {card.get("potential_profit_pct", "n/a")}%.')
+    elif topic == 'glossary':
+        parts.append('Коротко по сокращениям: SMC = Smart Money Concepts, VWAP = средняя цена по объёму, EMA = быстрая средняя, RSI = momentum/перекупленность, ATR = волатильность, FOMO = импульсивный вход из страха упустить движение.')
+    elif topic == 'pattern':
+        parts.append('По паттернам смотри не только форму, но и подтверждение: пробой/ретест уровня, объём, реакция у VWAP/EMA и invalidation. Гармонические XABCD требуют строгих Fibonacci-зон, иначе это просто похожая картинка.')
+    else:
+        parts.append(f'Почему так думает ИИ: {reason_text}')
+    if outcome:
+        parts.append(f'В исторической проверке рынок пошёл: {direction_ru.get(outcome.get("direction"), outcome.get("direction"))}, изменение около {outcome.get("change_pct", "n/a")}%.')
+    if fomo is not None:
+        parts.append(f'FOMO-риск: ~{round(fomo*100)}%. Если высокий — лучше ждать подтверждение, а не догонять свечу.')
+    parts.append('Это обучающее объяснение и не финансовый совет. Используй как разбор контекста, а не команду купить/продать.')
+    return {'ok': True, 'topic': topic, 'answer': '\n\n'.join(parts)}
+
+
 def render_trainer_html():
     return _read_web_asset('trainer.html')
 
@@ -604,6 +646,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             body = self.rfile.read(length).decode('utf-8') if length else '{}'
             if parsed.path in ('/api/journal/save', '/api/journal/outcome', '/api/council/save', '/api/graph-context'):
                 return self._send(200, json.dumps(handle_journal_api('POST', parsed.path, qs, body), ensure_ascii=False))
+            if parsed.path == '/api/trainer-chat':
+                data = json.loads(body or '{}')
+                return self._send(200, json.dumps(build_trainer_chat_reply(data.get('question'), data.get('card'), data.get('session')), ensure_ascii=False))
             if parsed.path == '/api/mind-card/choice':
                 data = json.loads(body or '{}')
                 con = init_journal(DEFAULT_DB)
