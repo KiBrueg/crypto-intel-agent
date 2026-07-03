@@ -80,6 +80,15 @@ def test_dashboard_html_contains_core_controls_and_sections():
     assert '/api/multi-timeframe' in html
 
 
+def test_dashboard_adds_world_news_as_general_mind_card_factor():
+    html = render_dashboard_html()
+    assert 'currentGlobalNewsImpact' in html
+    assert 'worldNewsFactor' in html
+    assert 'World News / Мировые новости' in html
+    assert 'Crypto impact' in html
+    assert 'Stocks impact' in html
+
+
 def test_dashboard_has_pattern_help_button_and_abbreviation_faq():
     html = render_dashboard_html()
     assert 'showPatternGuide' in html
@@ -225,6 +234,7 @@ def test_risk_reward_payload_uses_entry_side_stop_target():
 
 if __name__ == '__main__':
     test_dashboard_html_contains_core_controls_and_sections()
+    test_dashboard_adds_world_news_as_general_mind_card_factor()
     test_dashboard_has_pattern_help_button_and_abbreviation_faq()
     test_trainer_html_is_sellable_clean_training_page()
     test_trainer_chat_reply_uses_card_context_and_safe_tone()
