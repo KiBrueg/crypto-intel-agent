@@ -111,7 +111,96 @@ def score_news_items(items):
         'fear_greed_pressure': pressure,
         'scored_items': scored,
         'scenarios': scenarios,
+        'global_impact': build_global_news_impact(items),
     }
+
+
+GLOBAL_NEWS_CATEGORIES = {
+    'war_conflict': ['war', 'invasion', 'missile', 'strike', 'ceasefire', 'peace deal', 'peace talks', 'escalation', 'de-escalation', 'red sea', 'strait'],
+    'sanctions_bans': ['sanction', 'sanctions', 'ban', 'banned', 'blocked', 'restrict', 'restrictions', 'export control', 'blacklist'],
+    'regulation_policy': ['regulator', 'sec', 'cftc', 'law', 'bill', 'rules', 'approval', 'etf', 'tax', 'compliance'],
+    'leaders_billionaires': ['president', 'minister', 'central bank', 'powell', 'trump', 'biden', 'putin', 'xi ', 'musk', 'billionaire', 'ceo', 'blackrock'],
+    'energy_oil': ['oil', 'gas', 'pipeline', 'opec', 'energy', 'shipping route'],
+    'macro_rates': ['fed', 'rates', 'rate cut', 'rate hike', 'inflation', 'cpi', 'ppi', 'yields', 'recession'],
+}
+
+
+def _global_categories(text):
+    hits = []
+    for category, words in GLOBAL_NEWS_CATEGORIES.items():
+        if any(w in text for w in words):
+            hits.append(category)
+    return hits or ['general_market']
+
+
+def _effect_from_score(score):
+    if score > 0:
+        return 'growth_pressure'
+    if score < 0:
+        return 'fall_pressure'
+    return 'mixed'
+
+
+def build_global_news_impact(items):
+    cards = []
+    category_counts = {}
+    crypto_score = 0
+    stocks_score = 0
+    for item in items:
+        classified = classify_news_event(item)
+        text = _text(item)
+        cats = _global_categories(text)
+        for c in cats:
+            category_counts[c] = category_counts.get(c, 0) + 1
+        score = classified['impact_score']
+        crypto_score += score
+        stock_delta = score
+        if 'crypto_risk' in classified.get('drivers', []) or 'crypto' in text or 'bitcoin' in text or 'ethereum' in text:
+            stock_delta = 0 if score < 0 else max(0, score - 1)
+        if any(c in cats for c in ('war_conflict', 'sanctions_bans', 'energy_oil', 'macro_rates')):
+            stock_delta += -1 if score < 0 else (1 if score > 0 else 0)
+        stocks_score += stock_delta
+        if score or any(c != 'general_market' for c in cats):
+            cards.append({
+                'title': item.get('title', ''),
+                'source': item.get('source', ''),
+                'url': item.get('url', ''),
+                'categories': cats,
+                'crypto_effect': _effect_from_score(score),
+                'stocks_effect': _effect_from_score(stock_delta),
+                'impact_score': score,
+                'why': _global_why(cats, classified),
+            })
+    crypto_bias = 'bullish' if crypto_score > 1 else ('bearish' if crypto_score < -1 else 'mixed')
+    stocks_bias = 'bullish' if stocks_score > 1 else ('bearish' if stocks_score < -1 else 'mixed')
+    headline = f'Crypto: {crypto_bias}; Stocks: {stocks_bias}; key risks: ' + (', '.join(sorted(category_counts)[:4]) if category_counts else 'no high-impact global driver')
+    return {
+        'mode': 'global_news_impact',
+        'generated_at': datetime.now(timezone.utc).isoformat(),
+        'headline': headline,
+        'crypto_bias': crypto_bias,
+        'stocks_bias': stocks_bias,
+        'crypto_score': crypto_score,
+        'stocks_score': stocks_score,
+        'category_counts': category_counts,
+        'cards': cards[:10],
+        'what_to_watch': [
+            'BTC/ETH reaction at VWAP and key support/resistance after headline shock.',
+            'S&P/Nasdaq futures and DXY/yields for risk-on vs risk-off confirmation.',
+            'Oil/gas spikes if war, sanctions or shipping routes are involved.',
+            'Follow-up statements from regulators, presidents, central banks, major CEOs/billionaires.',
+        ],
+    }
+
+
+def _global_why(categories, classified):
+    cat_text = ', '.join(categories)
+    drivers = ', '.join(classified.get('drivers') or ['headline context'])
+    if classified['impact_score'] > 0:
+        return f'Potential risk-on/growth pressure: {drivers}; categories: {cat_text}.'
+    if classified['impact_score'] < 0:
+        return f'Potential risk-off/fall pressure: {drivers}; categories: {cat_text}.'
+    return f'Mixed/unclear until price confirms; categories: {cat_text}.'
 
 
 def fetch_rss_items(feeds=DEFAULT_RSS_FEEDS, limit_per_feed=8, timeout=8):

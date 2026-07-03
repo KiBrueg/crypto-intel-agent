@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
-from trader_assistant.market_news import classify_news_event, score_news_items
+from trader_assistant.market_news import classify_news_event, score_news_items, build_global_news_impact
 from trader_assistant.simulation import calibrate_simulations
 from web_dashboard import render_dashboard_html
 
@@ -39,6 +39,26 @@ def test_score_news_items_returns_market_indicator_with_bull_base_bear_cases():
     assert result['fear_greed_pressure'] in {'fear_up', 'greed_up', 'mixed'}
 
 
+def test_global_news_impact_card_groups_war_sanctions_bans_deals_and_leaders():
+    items = [
+        {'title': 'New sanctions target oil shipping after war escalation', 'source': 'Geo'},
+        {'title': 'President announces peace deal and ceasefire framework', 'source': 'Politics'},
+        {'title': 'Regulator proposes ban on crypto staking services', 'source': 'Reg'},
+        {'title': 'Billionaire CEO says Bitcoin is digital gold as ETF inflows rise', 'source': 'Markets'},
+    ]
+    result = build_global_news_impact(items)
+    assert result['mode'] == 'global_news_impact'
+    assert result['headline']
+    assert result['crypto_bias'] in {'bullish', 'bearish', 'mixed'}
+    assert result['stocks_bias'] in {'bullish', 'bearish', 'mixed'}
+    assert 'war_conflict' in result['category_counts']
+    assert 'sanctions_bans' in result['category_counts']
+    assert 'leaders_billionaires' in result['category_counts']
+    assert result['cards'][0]['crypto_effect'] in {'growth_pressure', 'fall_pressure', 'mixed'}
+    assert result['cards'][0]['why']
+    assert result['what_to_watch']
+
+
 def test_calibration_report_contains_multiple_scenarios():
     sims = [
         {'predicted_status': 'clean', 'outcome': 'target'},
@@ -56,12 +76,17 @@ def test_calibration_report_contains_multiple_scenarios():
 def test_dashboard_contains_news_impact_section():
     html = render_dashboard_html()
     assert 'Macro/RSS News Impact' in html
+    assert 'Global News Impact' in html
+    assert 'globalnewsimpact' in html
+    assert 'scanGlobalNewsImpact' in html
+    assert 'War / sanctions / bans / leaders' in html
 
 
 if __name__ == '__main__':
     test_news_event_classifier_scores_hawkish_fed_as_bearish_for_crypto()
     test_news_event_classifier_scores_rate_cut_and_etf_as_bullish()
     test_score_news_items_returns_market_indicator_with_bull_base_bear_cases()
+    test_global_news_impact_card_groups_war_sanctions_bans_deals_and_leaders()
     test_calibration_report_contains_multiple_scenarios()
     test_dashboard_contains_news_impact_section()
     print('OK macro news calibration tests passed')
