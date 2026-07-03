@@ -116,6 +116,11 @@ def test_trainer_html_is_sellable_clean_training_page():
     assert 'Start 10-card session' in html
     assert 'Skip/Next' in html
     assert 'Open full dashboard' in html
+    assert 'trainerChoose' in html
+    assert 'finishTrainerSession' in html
+    assert 'Join pilot waitlist' in html
+    assert 'Copy share text' in html
+    assert '/api/mind-card/next?historical=1' in html
 
 
 def test_landing_html_contains_demo_and_sales_assets():

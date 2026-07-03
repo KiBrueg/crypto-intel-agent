@@ -437,23 +437,16 @@ def handle_journal_api(method, path, qs=None, body=None, db_path=DEFAULT_DB):
         con.close()
 
 
+def _read_web_asset(name):
+    return (Path(__file__).with_name('web_assets') / name).read_text(encoding='utf-8')
+
+
 def render_trainer_html():
-    return '''<!doctype html><html><head><title>Market Mind Cards Trainer</title></head><body>
-    <h1>Market Mind Cards Trainer</h1><p>You vs AI vs Market · research/backtesting only</p>
-    <div id="trainerSessionTarget">10</div><div id="trainerSessionStats"></div><div id="trainerFinalSummary"></div>
-    <textarea id="trainerShareText"></textarea><button onclick="copyTrainerShare()">Copy</button>
-    <select><option>Mixed Session</option><option>Breakout Reads</option><option>Fakeout Defense</option><option>VWAP Reclaims</option></select>
-    <button>Start 10-card session</button><button>Skip/Next</button><a href="/">Open full dashboard</a>
-    <script>function copyTrainerShare(){}</script></body></html>'''
+    return _read_web_asset('trainer.html')
 
 
 def render_landing_html():
-    return '''<!doctype html><html><head><title>MarketMindCards</title></head><body>
-    <h1>Train your market reading</h1><a href="/trainer">Watch demo</a>
-    <h2>For trading communities</h2><h2>White-label pilot</h2>
-    <p>marketmindcards · not a signal bot · Telegram/Discord</p>
-    <p>I built a small AI-assisted crypto chart trainer for trading communities.</p>
-    </body></html>'''
+    return _read_web_asset('landing.html')
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
@@ -471,6 +464,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
         try:
             if parsed.path == '/':
                 return self._send(200, render_dashboard_html(), 'text/html')
+            if parsed.path == '/trainer':
+                return self._send(200, render_trainer_html(), 'text/html')
+            if parsed.path == '/landing':
+                return self._send(200, render_landing_html(), 'text/html')
             if parsed.path == '/api/snapshot':
                 return self._send(200, json.dumps(_payload_from_qs(qs), ensure_ascii=False))
             if parsed.path == '/api/risk-reward':
