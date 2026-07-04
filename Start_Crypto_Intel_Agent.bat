@@ -4,8 +4,9 @@ set "PROJECT_DIR=%~dp0"
 set "PROJECT_DIR=%PROJECT_DIR:~0,-1%"
 set "PYTHONIOENCODING=utf-8"
 set "PORT=8765"
-set "URL=http://127.0.0.1:%PORT%/trainer"
+set "URL=http://127.0.0.1:%PORT%/landing"
 set "DASHBOARD_URL=http://127.0.0.1:%PORT%"
+set "TRAINER_URL=http://127.0.0.1:%PORT%/trainer"
 
 cd /d "%PROJECT_DIR%" || (
   echo Project folder not found: %PROJECT_DIR%
@@ -26,10 +27,11 @@ if %errorlevel%==0 (
   timeout /t 1 /nobreak >nul
 )
 
-echo Starting Crypto Intel Agent trainer...
+echo Starting Crypto Intel Agent entry page...
 echo Project: %PROJECT_DIR%
-echo Trainer with right-side AI helper: %URL%
+echo Entry page with both modes: %URL%
 echo Full dashboard: %DASHBOARD_URL%
+echo Trainer with right-side AI helper: %TRAINER_URL%
 
 start "Crypto Intel Agent Server" /min cmd /k "cd /d "%PROJECT_DIR%" && python web_dashboard.py --host 127.0.0.1 --port %PORT%"
 

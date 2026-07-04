@@ -249,6 +249,10 @@ def test_landing_html_contains_demo_and_sales_assets():
     assert '<!doctype html>' in html.lower()
     assert 'Train your market reading' in html
     assert 'Watch demo' in html
+    assert 'Full Market Dashboard' in html
+    assert 'Open analytics dashboard' in html
+    assert 'charts, reports and market-state assessment' in html
+    assert 'Trainer + AI Helper' in html
     assert 'For trading communities' in html
     assert 'White-label pilot' in html
     assert 'marketmindcards' in html.lower()
@@ -316,6 +320,16 @@ def test_risk_reward_payload_uses_entry_side_stop_target():
     assert payload['rr_quality']['label'] == 'excellent'
 
 
+def test_windows_launcher_opens_entry_page_with_both_modes():
+    launcher = Path(__file__).resolve().parents[1] / 'Start_Crypto_Intel_Agent.bat'
+    text = launcher.read_text(encoding='utf-8')
+    assert 'http://127.0.0.1:%PORT%/landing' in text
+    assert 'TRAINER_URL=http://127.0.0.1:%PORT%/trainer' in text
+    assert 'DASHBOARD_URL=http://127.0.0.1:%PORT%' in text
+    assert 'Full dashboard' in text
+    assert 'Trainer with right-side AI helper' in text
+
+
 if __name__ == '__main__':
     test_dashboard_html_contains_core_controls_and_sections()
     test_dashboard_adds_world_news_as_general_mind_card_factor()
@@ -337,4 +351,5 @@ if __name__ == '__main__':
     test_snapshot_payload_shape_from_injected_fetchers()
     test_multi_timeframe_payload_returns_each_requested_interval()
     test_risk_reward_payload_uses_entry_side_stop_target()
+    test_windows_launcher_opens_entry_page_with_both_modes()
     print('OK web dashboard tests passed')

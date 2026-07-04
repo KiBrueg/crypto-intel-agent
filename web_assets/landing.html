@@ -2,14 +2,38 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MarketMindCards — AI chart trainer</title>
+  <title>Crypto Intel Agent — Dashboard + Trainer</title>
   <style>
-    body{margin:0;background:linear-gradient(135deg,#fffdf8,#f0e2d1);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#2d2d2d}.wrap{max-width:1080px;margin:0 auto;padding:42px 24px}.hero,.card{background:rgba(255,253,248,.9);border:1px solid #e5d8c9;border-radius:28px;padding:28px;box-shadow:rgba(45,45,45,.10) 0 30px 80px -40px}h1{font-size:62px;line-height:.95;font-weight:300;letter-spacing:-2px;margin:8px 0 14px}.sub{font-size:20px;color:#766b60;line-height:1.55}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:18px 0}.btn{display:inline-block;background:#2d2d2d;color:#fffdfa;padding:14px 18px;border-radius:14px;text-decoration:none;font-weight:800;margin-right:10px}.btn.secondary{background:#f1ebe2;color:#2d2d2d;border:1px solid #e5d8c9}.kicker{text-transform:uppercase;letter-spacing:.16em;color:#d2694e;font-weight:800}.price{font-size:30px;font-weight:800}.copy{white-space:pre-wrap;background:#fffdfa;border:1px solid #e5d8c9;border-radius:18px;padding:18px;color:#4b4138}.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.tier{border:1px solid #e5d8c9;border-radius:20px;padding:18px;background:#fffdfa}@media(max-width:800px){.grid,.tiers{grid-template-columns:1fr}h1{font-size:42px}}
+    :root{--paper:#fffdfa;--ink:#2d2d2d;--muted:#766b60;--line:#e5d8c9;--green:#3f7a56;--red:#b54a3a;--teal:#20aaa0;--accent:#d2694e;--cream:#faf7f1}
+    *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 10% -15%,rgba(230,177,126,.34),transparent 34%),linear-gradient(135deg,#fffdf8,#f0e2d1);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
+    .wrap{max-width:1120px;margin:0 auto;padding:42px 24px}.hero,.card{background:rgba(255,253,248,.92);border:1px solid var(--line);border-radius:28px;padding:28px;box-shadow:rgba(45,45,45,.10) 0 30px 80px -40px}.kicker{text-transform:uppercase;letter-spacing:.16em;color:var(--accent);font-weight:800;font-size:12px}h1{font-size:58px;line-height:.96;font-weight:300;letter-spacing:-2px;margin:8px 0 14px}.sub{font-size:20px;color:var(--muted);line-height:1.55}.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:22px 0}.mode{border:1px solid var(--line);border-radius:24px;padding:22px;background:var(--paper);min-height:250px;display:flex;flex-direction:column;justify-content:space-between}.mode.primary{background:linear-gradient(135deg,rgba(63,122,86,.10),rgba(255,253,248,.95));border-color:rgba(63,122,86,.30)}.mode.secondary{background:linear-gradient(135deg,rgba(32,170,160,.10),rgba(255,253,248,.95));border-color:rgba(32,170,160,.28)}h2{font-size:30px;margin:0 0 8px;font-weight:400}.mode p{color:var(--muted);line-height:1.5}.btn{display:inline-block;background:var(--ink);color:var(--paper);padding:14px 18px;border-radius:14px;text-decoration:none;font-weight:850;margin-right:10px}.btn.green{background:var(--green)}.btn.teal{background:var(--teal)}.btn.secondary{background:#f1ebe2;color:var(--ink);border:1px solid var(--line)}.features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:18px 0}.feature{background:rgba(255,253,248,.86);border:1px solid var(--line);border-radius:20px;padding:18px}.copy{white-space:pre-wrap;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:18px;color:#4b4138}.note{margin-top:14px;padding:14px;border-radius:18px;background:rgba(210,105,78,.10);border:1px solid rgba(210,105,78,.22);color:#5d4037}@media(max-width:850px){.mode-grid,.features{grid-template-columns:1fr}h1{font-size:42px}}
   </style>
 </head>
 <body><div class="wrap">
-  <section class="hero"><div class="kicker">marketmindcards · not a signal bot</div><h1>Train your market reading with AI-assisted historical crypto charts.</h1><p class="sub">Make a call. Compare with AI. Reveal what the market actually did. Built for trading communities, educators and pattern-recognition practice — research/backtesting only.</p><a class="btn" href="/trainer">Watch demo</a><a class="btn secondary" href="/">Open full dashboard</a></section>
-  <section class="grid"><div class="card"><h2>For trading communities</h2><p>Daily chart challenges, member engagement and neutral coaching without promising profits.</p></div><div class="card"><h2>You vs AI vs Market</h2><p>Every card compares the human decision, AI scenario and real historical outcome.</p></div><div class="card"><h2>White-label pilot</h2><p class="price">$199 setup + $49/mo</p><p>Starter pilot for Telegram/Discord groups; custom branding and drills can be added.</p></div></section>
-  <section class="card"><h2>Pilot packages</h2><div class="tiers"><div class="tier"><h3>Free demo</h3><p>Public trainer demo and sample session result.</p></div><div class="tier"><h3>Community</h3><p>$49/mo after setup: branded daily chart challenges.</p></div><div class="tier"><h3>White-label pilot</h3><p>Custom drills, logo/colors, community screenshots and onboarding.</p></div></div></section>
+  <section class="hero">
+    <div class="kicker">crypto intel agent · choose your workspace</div>
+    <h1>Full analytics dashboard stays here. Trainer is a separate mode.</h1>
+    <p class="sub">Use the powerful market dashboard for charts, reports and market-state assessment. Use Market Mind Cards Trainer for practice, hidden-future cards and the right-side AI helper. Nothing was removed — both pages are callable.</p>
+    <div class="mode-grid">
+      <div class="mode primary">
+        <div><div class="kicker">main workspace</div><h2>Full Market Dashboard</h2><p>Open analytics dashboard with charts, reports and market-state assessment: snapshot, risk/reward, multi-timeframe view, Macro/RSS, Global News Impact, Market Mind Cards and full decision context.</p></div>
+        <div><a class="btn green" href="/">Open analytics dashboard</a></div>
+      </div>
+      <div class="mode secondary">
+        <div><div class="kicker">training workspace</div><h2>Trainer + AI Helper</h2><p>Clean Market Mind Cards trainer with Growth/Fall/Skip decisions, You vs AI vs Market reveal, pattern cheat sheet and the right-side “ИИ помощник” popup.</p></div>
+        <div><a class="btn teal" href="/trainer">Open trainer with AI helper</a></div>
+      </div>
+    </div>
+    <p class="note"><b>Important:</b> the full dashboard is still available at <code>http://127.0.0.1:8765/</code>. The trainer is at <code>/trainer</code>. This entry page only helps you choose.</p>
+  </section>
+
+  <section class="features">
+    <div class="feature"><h2>For trading communities</h2><p>Daily chart challenges, member engagement and neutral coaching without promising profits.</p></div>
+    <div class="feature"><h2>You vs AI vs Market</h2><p>Every training card compares the human decision, AI scenario and real historical outcome.</p></div>
+    <div class="feature"><h2>White-label pilot</h2><p>Starter pilot for Telegram/Discord groups; custom branding and drills can be added.</p></div>
+  </section>
+
+  <section class="card"><h2>MarketMindCards — AI chart trainer</h2><p class="sub">Train your market reading with AI-assisted historical crypto charts. Make a call. Compare with AI. Reveal what the market actually did. Research/backtesting only — not a signal bot.</p><a class="btn" href="/trainer">Watch demo</a><a class="btn secondary" href="/">Open full dashboard</a></section>
+
   <section class="card"><h2>Outreach copy</h2><div class="copy">I built a small AI-assisted crypto chart trainer for Telegram/Discord trading communities. It shows real historical chart fragments, hides the future, lets users choose Growth/Fall/Skip, then reveals what the user chose, what AI expected, and what the market actually did. It is not a signal bot — it is a pattern recognition trainer. I can make a branded demo for your community.</div></section>
 </div></body></html>
