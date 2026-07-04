@@ -143,6 +143,18 @@ def test_pattern_guides_visualize_inverse_cup_and_harmonics_too():
         assert 'prz-zone' in html
 
 
+def test_pattern_guides_visualize_wedge_and_range_fakeout_too():
+    dashboard = render_dashboard_html()
+    trainer = render_trainer_html()
+    for html in (dashboard, trainer):
+        assert 'Wedge visual' in html
+        assert 'Range breakout / fakeout visual' in html
+        assert 'wedge-lines' in html
+        assert 'range-box' in html
+        assert 'fakeout-marker' in html
+        assert html.count('pattern-visual') >= 14
+
+
 def test_trainer_html_is_sellable_clean_training_page():
     html = render_trainer_html()
     assert '<!doctype html>' in html.lower()
@@ -274,6 +286,7 @@ if __name__ == '__main__':
     test_dashboard_has_pattern_help_button_and_abbreviation_faq()
     test_pattern_guides_have_visual_candlestick_charts_not_only_text()
     test_pattern_guides_visualize_inverse_cup_and_harmonics_too()
+    test_pattern_guides_visualize_wedge_and_range_fakeout_too()
     test_trainer_html_is_sellable_clean_training_page()
     test_trainer_chat_reply_uses_card_context_and_safe_tone()
     test_landing_html_contains_demo_and_sales_assets()
