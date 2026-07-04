@@ -249,6 +249,9 @@ def test_dashboard_and_trainer_render_visible_historical_stats_block():
         assert 'histStatProfile' in html
         assert 'stat_direction' in html
         assert 'selected_filter' in html
+        assert 'renderExperienceCalibration' in html
+        assert 'Accumulated Experience' in html
+        assert 'recommended realistic confidence' in html
 
 
 def test_trainer_chat_explains_historical_stats_basis_when_available():

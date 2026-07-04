@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 from datetime import datetime, timezone
@@ -441,6 +442,101 @@ def build_historical_mind_card(snapshot, mode='mixed', exchange='BINANCE', visib
     return card
 
 
+def _profile_key(profile):
+    profile = dict(profile or {})
+    keys = ['trend_bucket', 'rsi_bucket', 'vwap_bucket', 'rr_bucket', 'fomo_bucket', 'volume_bucket', 'range_bucket', 'fakeout_bucket']
+    normalized = {k: profile.get(k) for k in keys if profile.get(k) is not None}
+    raw = _json(normalized)
+    return hashlib.sha1(raw.encode('utf-8')).hexdigest(), normalized
+
+
+def _scenario_confirmed(predicted, actual):
+    predicted = str(predicted or '').lower()
+    actual = str(actual or '').lower()
+    return 1 if (predicted == actual or (predicted == 'skip' and actual == 'flat')) else 0
+
+
+def experience_calibration_for_profile(con, profile, min_sample=6):
+    feature_hash, normalized = _profile_key(profile)
+    rows = con.execute('''
+        select ai_scenario_confirmed, ai_confidence, actual_direction, lesson_json
+        from mind_card_learning_events
+        where feature_hash=?
+    ''', (feature_hash,)).fetchall()
+    selected_filter = 'exact'
+    if len(rows) < int(min_sample or 1):
+        all_rows = con.execute('''
+            select ai_scenario_confirmed, ai_confidence, actual_direction, lesson_json
+            from mind_card_learning_events
+        ''').fetchall()
+        filters = ['trend+rsi+vwap+rr+fomo+volume+range+fakeout', 'trend+rsi+vwap+rr+fomo', 'trend+rsi+vwap', 'trend+rsi', 'trend', 'all']
+        for filter_name in filters:
+            candidates = []
+            for r in all_rows:
+                lesson = _loads(r['lesson_json'], {})
+                row_profile = lesson.get('match_profile') or {}
+                if filter_name == 'all' or _profile_matches(row_profile, normalized, filter_name):
+                    candidates.append(r)
+            if len(candidates) >= int(min_sample or 1) or filter_name == 'all':
+                rows = candidates
+                selected_filter = filter_name
+                break
+    total = len(rows)
+    if total < int(min_sample or 1):
+        return {
+            'experience_key': feature_hash,
+            'sample_size': total,
+            'match_profile': normalized,
+            'enough_data': False,
+            'selected_filter': selected_filter,
+            'ai_hit_rate': None,
+            'recommended_confidence': None,
+        }
+    hits = sum(1 for r in rows if int(r['ai_scenario_confirmed'] or 0) == 1)
+    directions = {'up': 0, 'down': 0, 'flat': 0}
+    for r in rows:
+        d = str(r['actual_direction'] or '').lower()
+        if d in directions:
+            directions[d] += 1
+    hit_rate = hits / total if total else 0.0
+    avg_conf = sum(float(r['ai_confidence'] or 0) for r in rows) / total if total else 0.0
+    recommended = max(0.18, min(0.82, 0.28 + hit_rate * 0.58 + min(0.08, total / 250.0)))
+    return {
+        'experience_key': feature_hash,
+        'sample_size': total,
+        'match_profile': normalized,
+        'enough_data': True,
+        'selected_filter': selected_filter,
+        'ai_hit_rate': round(hit_rate, 3),
+        'avg_ai_confidence': round(avg_conf, 3),
+        'recommended_confidence': round(recommended, 3),
+        'actual_direction_counts': directions,
+    }
+
+
+def apply_experience_calibration(card, con, min_sample=6):
+    stats = card.get('historical_stats') or ((card.get('features') or {}).get('historical_stats') or {})
+    profile = stats.get('match_profile') or {}
+    cal = experience_calibration_for_profile(con, profile, min_sample=min_sample)
+    if not cal.get('enough_data'):
+        return card
+    card = dict(card)
+    features = dict(card.get('features') or {})
+    reasons = list(card.get('ai_reason') or [])
+    old_conf = float(card.get('ai_confidence') or 0.0)
+    rec = float(cal.get('recommended_confidence') or old_conf)
+    new_conf = round(max(0.05, min(0.9, old_conf * 0.62 + rec * 0.38)), 3)
+    card['ai_confidence'] = new_conf
+    card['experience_calibration'] = cal
+    features['experience_calibration'] = cal
+    card['features'] = features
+    reasons.append(
+        f"Accumulated experience: {cal['sample_size']} saved outcomes for this bucket profile → AI hit-rate {round(cal['ai_hit_rate']*100)}%, recommended realistic confidence {round(rec*100)}%; adjusted confidence {round(new_conf*100)}%."
+    )
+    card['ai_reason'] = reasons
+    return card
+
+
 def save_mind_card(con, card, session_id=None):
     con.execute('''
         insert into mind_cards(
@@ -468,14 +564,38 @@ def record_user_choice(con, card_id, direction, size='none'):
     size = 'none' if direction == 'skip' else str(size or 'none').lower()
     if size not in ('none', 'small', 'medium', 'large'):
         raise ValueError('size must be none/small/medium/large')
-    row = con.execute('select ai_direction from mind_cards where id=?', (int(card_id),)).fetchone()
+    row = con.execute('select * from mind_cards where id=?', (int(card_id),)).fetchone()
     if row is None:
         raise KeyError(f'unknown mind card id {card_id}')
-    agreement = 1 if row['ai_direction'] == direction else 0
+    features = _loads(row['features_json'], {})
+    ai_direction = row['ai_direction']
+    agreement = 1 if ai_direction == direction else 0
+    known = features.get('known_outcome') or {}
+    actual_direction = str(known.get('direction') or '').lower() if known else None
+    ai_confirmed = _scenario_confirmed(ai_direction, actual_direction) if actual_direction else None
+    user_confirmed = _scenario_confirmed(direction, actual_direction) if actual_direction else None
     con.execute('''
-        update mind_cards set user_direction=?, user_size=?, user_decided_at=?, agreement_with_ai=?, status='answered'
+        update mind_cards set user_direction=?, user_size=?, user_decided_at=?, agreement_with_ai=?, status='answered',
+            actual_direction=coalesce(?, actual_direction), ai_scenario_confirmed=coalesce(?, ai_scenario_confirmed),
+            user_scenario_confirmed=coalesce(?, user_scenario_confirmed), verified_at=case when ? is null then verified_at else ? end
         where id=?
-    ''', (direction, size, _now(), agreement, int(card_id)))
+    ''', (direction, size, _now(), agreement, actual_direction, ai_confirmed, user_confirmed, actual_direction, _now(), int(card_id)))
+    stats = features.get('historical_stats') or {}
+    profile = stats.get('match_profile') or {}
+    if actual_direction and profile:
+        feature_hash, normalized = _profile_key(profile)
+        lesson = {'match_profile': normalized, 'known_outcome': known, 'experience_source': 'historical_replay'}
+        con.execute('''
+            insert into mind_card_learning_events(
+                created_at, card_id, mode, symbol, interval, feature_hash, ai_direction, user_direction,
+                actual_direction, ai_scenario_confirmed, user_scenario_confirmed, setup_quality,
+                market_regime, focus_area, fomo_score, risk_reward_ratio, ai_confidence, actual_outcome, lesson_json
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            _now(), int(card_id), row['mode'], row['symbol'], row['interval'], feature_hash, ai_direction, direction,
+            actual_direction, ai_confirmed, user_confirmed, row['setup_quality'], row['market_regime'], None,
+            row['fomo_score'], row['risk_reward_ratio'], row['ai_confidence'], actual_direction, _json(lesson),
+        ))
     con.commit()
     return mind_card_detail(con, card_id)
 

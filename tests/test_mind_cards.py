@@ -5,7 +5,11 @@ import sys
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from trader_assistant.journal import init_journal
-from trader_assistant.mind_cards import build_mind_card, save_mind_card, record_user_choice, mind_card_detail, build_historical_mind_card, build_historical_setup_stats
+from trader_assistant.mind_cards import (
+    build_mind_card, save_mind_card, record_user_choice, mind_card_detail,
+    build_historical_mind_card, build_historical_setup_stats,
+    experience_calibration_for_profile, apply_experience_calibration,
+)
 
 
 def candle(ts, open_, high, low, close, volume=100):
@@ -189,6 +193,50 @@ def test_historical_stats_include_volume_range_and_fakeout_buckets():
     assert any('Volume' in x and 'Range' in x and 'Fakeout' in x for x in card['ai_reason'])
 
 
+def test_experience_calibration_persists_outcomes_and_adjusts_future_confidence():
+    with tempfile.TemporaryDirectory() as td:
+        con = init_journal(Path(td) / 'test.sqlite3')
+        try:
+            base = sample_snapshot()
+            candles = []
+            price = 100.0
+            for i in range(130):
+                drift = 0.35 if i % 9 < 6 else -0.55
+                open_ = price
+                close = price + drift
+                candles.append(candle(1000 + i * 60, open_, max(open_, close) + 0.45, min(open_, close) - 0.45, close, 120 + i))
+                price = close
+            base['candles'] = candles
+
+            # Store repeated answered replay cards so the local experience memory has evidence.
+            last_card = None
+            for seed in (1, 2, 3, 4):
+                card = build_historical_mind_card(base, mode='mixed', seed=seed, visible_candles=30, outcome_candles=8)
+                card['ai_direction'] = 'up'
+                card['ai_confidence'] = 0.82
+                card['known_outcome']['direction'] = 'down'
+                card['features']['known_outcome']['direction'] = 'down'
+                card_id = save_mind_card(con, card)
+                record_user_choice(con, card_id, direction='up', size='medium')
+                last_card = card
+
+            profile = last_card['historical_stats']['match_profile']
+            cal = experience_calibration_for_profile(con, profile, min_sample=3)
+            assert cal['sample_size'] >= 3
+            assert cal['ai_hit_rate'] == 0.0
+            assert cal['recommended_confidence'] < 0.5
+            assert 'experience_key' in cal
+
+            future = dict(last_card)
+            future['ai_confidence'] = 0.82
+            adjusted = apply_experience_calibration(future, con, min_sample=3)
+            assert adjusted['experience_calibration']['sample_size'] >= 3
+            assert adjusted['ai_confidence'] < 0.82
+            assert any('Accumulated experience' in x for x in adjusted['ai_reason'])
+        finally:
+            con.close()
+
+
 if __name__ == '__main__':
     test_build_mind_card_has_compact_cockpit_fields()
     test_save_card_and_record_user_choice()
@@ -197,4 +245,5 @@ if __name__ == '__main__':
     test_historical_mind_card_includes_setup_statistics_from_past_windows()
     test_historical_stats_use_rsi_vwap_rr_and_fomo_buckets_for_similarity()
     test_historical_stats_include_volume_range_and_fakeout_buckets()
+    test_experience_calibration_persists_outcomes_and_adjusts_future_confidence()
     print('OK mind cards tests passed')
