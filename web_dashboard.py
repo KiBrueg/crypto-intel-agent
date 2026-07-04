@@ -458,28 +458,45 @@ def build_trainer_chat_reply(question, card=None, session=None):
     direction_ru = {'up': 'рост / Growth', 'down': 'падение / Fall', 'skip': 'неясно / Skip', 'flat': 'флэт'}
     topic = 'current_card'
     ql = q.lower()
-    if any(x in ql for x in ['r/r', 'risk', 'reward', 'риск', 'прибыл', 'соотнош']):
+    if any(x in ql for x in ['invalidation', 'invalid', 'стоп', 'слом', 'отмена', 'уровень отмены']):
+        topic = 'invalidation'
+    elif any(x in ql for x in ['vwap', 'ema', 'средн']):
+        topic = 'vwap_ema'
+    elif any(x in ql for x in ['r/r', 'risk', 'reward', 'риск', 'прибыл', 'соотнош']):
         topic = 'risk_reward'
-    elif any(x in ql for x in ['vwap', 'ema', 'rsi', 'atr', 'smc', 'fomo', 'bos', 'choch', 'сокращ']):
+    elif any(x in ql for x in ['rsi', 'atr', 'smc', 'fomo', 'bos', 'choch', 'сокращ']):
         topic = 'glossary'
-    elif any(x in ql for x in ['паттерн', 'pattern', 'gartley', 'butterfly', 'triangle', 'flag']):
+    elif any(x in ql for x in ['паттерн', 'pattern', 'gartley', 'butterfly', 'triangle', 'flag', 'wedge', 'fakeout', 'range', 'prz', 'cup', 'head']):
         topic = 'pattern'
+    elif any(x in ql for x in ['skip', 'пропуск', 'почему пропустить', 'неясно']):
+        topic = 'skip'
     reasons = card.get('ai_reason') or []
     reason_text = '; '.join(str(x) for x in reasons[:4]) or 'нет явных причин в карточке — смотри структуру, VWAP/EMA, объём и риск.'
     rr = card.get('risk_reward_ratio')
     conf = card.get('ai_confidence')
     fomo = card.get('fomo_score')
+    quality = card.get('setup_quality') or 'n/a'
+    regime = card.get('market_regime') or 'n/a'
+    tone = (session.get('tone') or 'pro').lower()
+    beginner = tone in ('beginner', 'новичок', 'simple')
     outcome = card.get('known_outcome') or (card.get('features') or {}).get('known_outcome') or {}
     parts = [
         f'Смотрю текущую карточку {symbol} · {interval}.',
+        ('Объясняю как новичку: простыми словами, без торговых команд.' if beginner else 'Формат: короткий трейдерский разбор контекста.'),
         f'ИИ-сценарий: {direction_ru.get(ai_dir, ai_dir)}' + (f' с уверенностью ~{round(conf*100)}%.' if isinstance(conf, (int, float)) else '.'),
     ]
     if topic == 'risk_reward':
         parts.append(f'R/R = Risk/Reward: сколько потенциальной прибыли приходится на 1 единицу риска. Здесь R/R: {rr if rr is not None else "n/a"}. Risk примерно {card.get("risk_loss_pct", "n/a")}% против potential {card.get("potential_profit_pct", "n/a")}%.')
+    elif topic == 'vwap_ema':
+        parts.append(f'VWAP — средняя цена по объёму: показывает, где “справедливая” intraday-зона. EMA — скользящие средние для темпа тренда. По этой карточке смотри: цена удерживается выше/ниже VWAP, есть ли reclaim/rejection, и совпадает ли это с EMA-направлением. Причины: {reason_text}')
     elif topic == 'glossary':
-        parts.append('Коротко по сокращениям: SMC = Smart Money Concepts, VWAP = средняя цена по объёму, EMA = быстрая средняя, RSI = momentum/перекупленность, ATR = волатильность, FOMO = импульсивный вход из страха упустить движение.')
+        parts.append('Коротко по сокращениям: SMC = Smart Money Concepts, VWAP = средняя цена по объёму, EMA = быстрая средняя, RSI = momentum/перекупленность, ATR = волатильность, FOMO = импульсивный вход из страха упустить движение, BOS/CHOCH = смена/слом структуры.')
     elif topic == 'pattern':
-        parts.append('По паттернам смотри не только форму, но и подтверждение: пробой/ретест уровня, объём, реакция у VWAP/EMA и invalidation. Гармонические XABCD требуют строгих Fibonacci-зон, иначе это просто похожая картинка.')
+        parts.append(f'Паттерн — это гипотеза, не сигнал сам по себе. Смотри: форма + уровень подтверждения + объём + реакция у VWAP/EMA + invalidation. Для wedge/range/fakeout важен возврат внутрь диапазона; для Cup/Head/Shoulders — neckline/handle; для гармоник — XABCD и PRZ. В этой карточке подсказки: {reason_text}')
+    elif topic == 'invalidation':
+        parts.append(f'Invalidation — где сценарий ломается. Практически смотри ближайший ключевой уровень/neckline/range high-low/VWAP. Если цена закрепляется против AI-сценария и ретест подтверждает пробой, гипотезу лучше считать сломанной. Для карточки: setup quality={quality}, regime={regime}, R/R={rr if rr is not None else "n/a"}.')
+    elif topic == 'skip':
+        parts.append(f'Skip уместен, когда контекст смешанный: confidence низкая, R/R слабый, FOMO высокий, цена в середине диапазона или нет подтверждения объёмом/VWAP. Здесь quality={quality}, regime={regime}, причины: {reason_text}')
     else:
         parts.append(f'Почему так думает ИИ: {reason_text}')
     if outcome:

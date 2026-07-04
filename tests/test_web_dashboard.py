@@ -190,6 +190,42 @@ def test_trainer_html_is_sellable_clean_training_page():
     assert 'ИИ помощник' in html
 
 
+def test_trainer_assistant_popup_has_quick_questions_and_explain_modes():
+    html = render_trainer_html()
+    assert 'assistantQuickActions' in html
+    assert 'assistantAskQuick' in html
+    assert 'assistantTone' in html
+    assert 'Объясни новичку' in html
+    assert 'Как трейдеру' in html
+    assert 'Почему AI так думает?' in html
+    assert 'Где invalidation?' in html
+    assert 'VWAP/EMA?' in html
+    assert 'Какой паттерн?' in html
+    assert 'Почему Skip?' in html
+    assert 'assistant-panel' in html and 'right:24px' in html
+
+
+def test_trainer_chat_reply_handles_invalidation_pattern_and_vwap_questions():
+    card = {
+        'symbol': 'ETHUSDT', 'interval': '15m', 'ai_direction': 'skip',
+        'ai_confidence': 0.46, 'risk_reward_ratio': 1.2,
+        'risk_loss_pct': 1.4, 'potential_profit_pct': 1.7,
+        'setup_quality': 'mixed', 'market_regime': 'choppy', 'fomo_score': 0.61,
+        'ai_reason': ['Range high fakeout risk.', 'Price is under VWAP.', 'Pattern: wedge compression.'],
+    }
+    inv = build_trainer_chat_reply('Где invalidation?', card, {'tone': 'pro'})
+    assert inv['topic'] == 'invalidation'
+    assert 'invalidation' in inv['answer'].lower()
+    assert 'стоп' in inv['answer'].lower() or 'уров' in inv['answer'].lower()
+    pat = build_trainer_chat_reply('Какой паттерн и что смотреть?', card, {'tone': 'beginner'})
+    assert pat['topic'] == 'pattern'
+    assert 'wedge' in pat['answer'].lower() or 'паттерн' in pat['answer'].lower()
+    assert 'нович' in pat['answer'].lower()
+    vwap = build_trainer_chat_reply('VWAP/EMA?', card, {})
+    assert vwap['topic'] == 'vwap_ema'
+    assert 'VWAP' in vwap['answer'] and 'EMA' in vwap['answer']
+
+
 def test_trainer_chat_reply_uses_card_context_and_safe_tone():
     card = {
         'symbol': 'BTCUSDT', 'interval': '1h', 'ai_direction': 'down',
@@ -288,6 +324,8 @@ if __name__ == '__main__':
     test_pattern_guides_visualize_inverse_cup_and_harmonics_too()
     test_pattern_guides_visualize_wedge_and_range_fakeout_too()
     test_trainer_html_is_sellable_clean_training_page()
+    test_trainer_assistant_popup_has_quick_questions_and_explain_modes()
+    test_trainer_chat_reply_handles_invalidation_pattern_and_vwap_questions()
     test_trainer_chat_reply_uses_card_context_and_safe_tone()
     test_landing_html_contains_demo_and_sales_assets()
     test_default_watchlist_has_major_pairs()
