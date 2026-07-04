@@ -159,9 +159,34 @@ def test_historical_stats_use_rsi_vwap_rr_and_fomo_buckets_for_similarity():
     assert profile['rr_bucket'] in ('poor_rr', 'ok_rr', 'good_rr')
     assert profile['fomo_bucket'] in ('low_fomo', 'mid_fomo', 'high_fomo')
     assert 'similarity_filters' in stats
-    assert stats['similarity_filters'][0] == 'trend+rsi+vwap+rr+fomo'
+    assert stats['similarity_filters'][0] == 'trend+rsi+vwap+rr+fomo+volume+range+fakeout'
     assert 'stat_edge' in stats
     assert any('RSI' in x and 'VWAP' in x and 'R/R' in x for x in card['ai_reason'])
+
+
+def test_historical_stats_include_volume_range_and_fakeout_buckets():
+    base = sample_snapshot()
+    candles = []
+    price = 100.0
+    for i in range(170):
+        # alternating range with occasional wick/fakeout-style excursions and volume spikes
+        center = 100 + (i // 40) * 2
+        open_ = price
+        close = center + ((i % 8) - 4) * 0.18
+        wick = 1.4 if i % 19 == 0 else 0.35
+        high = max(open_, close) + wick
+        low = min(open_, close) - (1.2 if i % 23 == 0 else 0.35)
+        volume = 100 + (180 if i % 19 == 0 else i % 20)
+        candles.append(candle(1000 + i * 60, open_, high, low, close, volume))
+        price = close
+    base['candles'] = candles
+    card = build_historical_mind_card(base, mode='mixed', seed=9, visible_candles=34, outcome_candles=8)
+    profile = card['historical_stats']['match_profile']
+    assert profile['volume_bucket'] in ('quiet_volume', 'normal_volume', 'spike_volume')
+    assert profile['range_bucket'] in ('tight_range', 'normal_range', 'wide_range')
+    assert profile['fakeout_bucket'] in ('no_fakeout', 'upper_fakeout', 'lower_fakeout', 'two_sided_fakeout')
+    assert card['historical_stats']['similarity_filters'][0] == 'trend+rsi+vwap+rr+fomo+volume+range+fakeout'
+    assert any('Volume' in x and 'Range' in x and 'Fakeout' in x for x in card['ai_reason'])
 
 
 if __name__ == '__main__':
@@ -171,4 +196,5 @@ if __name__ == '__main__':
     test_historical_outcome_survives_user_choice_for_result_comparison()
     test_historical_mind_card_includes_setup_statistics_from_past_windows()
     test_historical_stats_use_rsi_vwap_rr_and_fomo_buckets_for_similarity()
+    test_historical_stats_include_volume_range_and_fakeout_buckets()
     print('OK mind cards tests passed')

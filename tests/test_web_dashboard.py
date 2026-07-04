@@ -226,6 +226,18 @@ def test_trainer_chat_reply_handles_invalidation_pattern_and_vwap_questions():
     assert 'VWAP' in vwap['answer'] and 'EMA' in vwap['answer']
 
 
+def test_dashboard_and_trainer_render_visible_historical_stats_block():
+    dashboard = render_dashboard_html()
+    trainer = render_trainer_html()
+    for html in (dashboard, trainer):
+        assert 'renderHistoricalStats' in html
+        assert 'Historical Similarity Stats' in html
+        assert 'histStatBars' in html
+        assert 'histStatProfile' in html
+        assert 'stat_direction' in html
+        assert 'selected_filter' in html
+
+
 def test_trainer_chat_explains_historical_stats_basis_when_available():
     card = {
         'symbol': 'BTCUSDT', 'interval': '1h', 'ai_direction': 'up', 'ai_confidence': 0.61,
@@ -359,6 +371,7 @@ if __name__ == '__main__':
     test_trainer_html_is_sellable_clean_training_page()
     test_trainer_assistant_popup_has_quick_questions_and_explain_modes()
     test_trainer_chat_reply_handles_invalidation_pattern_and_vwap_questions()
+    test_dashboard_and_trainer_render_visible_historical_stats_block()
     test_trainer_chat_explains_historical_stats_basis_when_available()
     test_trainer_chat_reply_uses_card_context_and_safe_tone()
     test_landing_html_contains_demo_and_sales_assets()

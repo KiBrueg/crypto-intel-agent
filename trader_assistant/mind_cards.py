@@ -158,6 +158,64 @@ def _fomo_bucket(rsi, direction):
     return 'low_fomo'
 
 
+def _volume_bucket(candles):
+    vols = [float(c.get('volume') or 0) for c in candles if c.get('volume') is not None]
+    if len(vols) < 6:
+        return 'normal_volume'
+    recent = sum(vols[-3:]) / 3.0
+    baseline = sum(vols[:-3]) / max(1, len(vols[:-3]))
+    if baseline <= 0:
+        return 'normal_volume'
+    ratio = recent / baseline
+    if ratio >= 1.45:
+        return 'spike_volume'
+    if ratio <= 0.72:
+        return 'quiet_volume'
+    return 'normal_volume'
+
+
+def _range_bucket(candles):
+    if not candles:
+        return 'normal_range'
+    try:
+        closes = [float(c.get('close') or 0) for c in candles]
+        highs = [float(c.get('high') or 0) for c in candles]
+        lows = [float(c.get('low') or 0) for c in candles]
+        mid = sum(closes) / len(closes)
+        width_pct = ((max(highs) - min(lows)) / mid * 100.0) if mid else 0.0
+    except Exception:
+        return 'normal_range'
+    if width_pct < 1.2:
+        return 'tight_range'
+    if width_pct > 4.5:
+        return 'wide_range'
+    return 'normal_range'
+
+
+def _fakeout_bucket(candles):
+    if len(candles) < 12:
+        return 'no_fakeout'
+    prior = candles[:-1]
+    last = candles[-1]
+    try:
+        prior_high = max(float(c.get('high') or 0) for c in prior[-12:])
+        prior_low = min(float(c.get('low') or 0) for c in prior[-12:])
+        high = float(last.get('high') or 0)
+        low = float(last.get('low') or 0)
+        close = float(last.get('close') or 0)
+    except Exception:
+        return 'no_fakeout'
+    upper = high > prior_high and close < prior_high
+    lower = low < prior_low and close > prior_low
+    if upper and lower:
+        return 'two_sided_fakeout'
+    if upper:
+        return 'upper_fakeout'
+    if lower:
+        return 'lower_fakeout'
+    return 'no_fakeout'
+
+
 def _window_profile(candles, rr_ratio=1.0):
     trend = _window_trend(candles)
     rsi = _rsi_from_window(candles)
@@ -168,11 +226,15 @@ def _window_profile(candles, rr_ratio=1.0):
         'vwap_bucket': _vwap_bucket(candles),
         'rr_bucket': _rr_bucket(rr_ratio),
         'fomo_bucket': _fomo_bucket(rsi, direction),
+        'volume_bucket': _volume_bucket(candles),
+        'range_bucket': _range_bucket(candles),
+        'fakeout_bucket': _fakeout_bucket(candles),
     }
 
 
 def _profile_matches(profile, target, filter_name):
     keys = {
+        'trend+rsi+vwap+rr+fomo+volume+range+fakeout': ['trend_bucket', 'rsi_bucket', 'vwap_bucket', 'rr_bucket', 'fomo_bucket', 'volume_bucket', 'range_bucket', 'fakeout_bucket'],
         'trend+rsi+vwap+rr+fomo': ['trend_bucket', 'rsi_bucket', 'vwap_bucket', 'rr_bucket', 'fomo_bucket'],
         'trend+rsi+vwap': ['trend_bucket', 'rsi_bucket', 'vwap_bucket'],
         'trend+rsi': ['trend_bucket', 'rsi_bucket'],
@@ -190,7 +252,7 @@ def build_historical_setup_stats(candles, visible_candles=52, outcome_candles=8,
     target_profile = dict(current_profile or {})
     if current_trend and not target_profile.get('trend_bucket'):
         target_profile['trend_bucket'] = current_trend
-    filters = ['trend+rsi+vwap+rr+fomo', 'trend+rsi+vwap', 'trend+rsi', 'trend', 'all']
+    filters = ['trend+rsi+vwap+rr+fomo+volume+range+fakeout', 'trend+rsi+vwap+rr+fomo', 'trend+rsi+vwap', 'trend+rsi', 'trend', 'all']
     selected_filter = filters[-1]
     selected_rows = []
     for filter_name in filters:
@@ -352,6 +414,9 @@ def build_historical_mind_card(snapshot, mode='mixed', exchange='BINANCE', visib
     p = stats.get('match_profile') or {}
     card['ai_reason'].append(
         f"Similarity profile: trend={p.get('trend_bucket')}, RSI={p.get('rsi_bucket')}, VWAP={p.get('vwap_bucket')}, R/R={p.get('rr_bucket')}, FOMO={p.get('fomo_bucket')}."
+    )
+    card['ai_reason'].append(
+        f"Structure profile: Volume={p.get('volume_bucket')}, Range={p.get('range_bucket')}, Fakeout={p.get('fakeout_bucket')}."
     )
     if stats.get('sample_size', 0) >= 20:
         stat_dir = stats.get('stat_direction')
