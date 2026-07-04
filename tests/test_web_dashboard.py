@@ -226,6 +226,25 @@ def test_trainer_chat_reply_handles_invalidation_pattern_and_vwap_questions():
     assert 'VWAP' in vwap['answer'] and 'EMA' in vwap['answer']
 
 
+def test_trainer_chat_explains_historical_stats_basis_when_available():
+    card = {
+        'symbol': 'BTCUSDT', 'interval': '1h', 'ai_direction': 'up', 'ai_confidence': 0.61,
+        'ai_reason': ['Historical stats: 38 historical windows matched by trend+rsi+vwap → up 58%, down 29%, flat 13%.'],
+        'historical_stats': {
+            'sample_size': 38, 'up_rate': 0.58, 'down_rate': 0.29, 'flat_rate': 0.13,
+            'avg_change_pct': 0.22, 'stat_direction': 'up', 'stat_confidence': 0.61,
+            'stat_edge': 0.29, 'selected_filter': 'trend+rsi+vwap',
+            'match_profile': {'trend_bucket': 'bullish', 'rsi_bucket': 'high', 'vwap_bucket': 'above_vwap', 'rr_bucket': 'ok_rr', 'fomo_bucket': 'mid_fomo'},
+        },
+    }
+    reply = build_trainer_chat_reply('На какой статистике основан AI?', card, {})
+    assert reply['topic'] == 'historical_stats'
+    assert '38' in reply['answer']
+    assert '58%' in reply['answer']
+    assert 'trend+rsi+vwap' in reply['answer']
+    assert 'не финансовый совет' in reply['answer'].lower()
+
+
 def test_trainer_chat_reply_uses_card_context_and_safe_tone():
     card = {
         'symbol': 'BTCUSDT', 'interval': '1h', 'ai_direction': 'down',
@@ -340,6 +359,7 @@ if __name__ == '__main__':
     test_trainer_html_is_sellable_clean_training_page()
     test_trainer_assistant_popup_has_quick_questions_and_explain_modes()
     test_trainer_chat_reply_handles_invalidation_pattern_and_vwap_questions()
+    test_trainer_chat_explains_historical_stats_basis_when_available()
     test_trainer_chat_reply_uses_card_context_and_safe_tone()
     test_landing_html_contains_demo_and_sales_assets()
     test_default_watchlist_has_major_pairs()

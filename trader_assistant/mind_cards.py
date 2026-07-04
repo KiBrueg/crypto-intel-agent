@@ -64,6 +64,196 @@ def _market_regime(snapshot):
     return 'mixed'
 
 
+def _window_trend(candles):
+    if not candles:
+        return 'mixed'
+    try:
+        first = float(candles[0].get('close') or candles[0].get('open') or 0)
+        last = float(candles[-1].get('close') or candles[-1].get('open') or first)
+        change = ((last - first) / first * 100.0) if first else 0.0
+    except Exception:
+        return 'mixed'
+    if change > 0.15:
+        return 'bullish'
+    if change < -0.15:
+        return 'bearish'
+    return 'mixed'
+
+
+def _direction_from_change(change_pct, threshold=0.05):
+    if change_pct > threshold:
+        return 'up'
+    if change_pct < -threshold:
+        return 'down'
+    return 'flat'
+
+
+def _rsi_from_window(candles):
+    closes = [float(c.get('close') or 0) for c in candles[-14:] if c.get('close') is not None]
+    if len(closes) < 2:
+        return 50.0
+    gains = [max(0.0, closes[i] - closes[i - 1]) for i in range(1, len(closes))]
+    losses = [max(0.0, closes[i - 1] - closes[i]) for i in range(1, len(closes))]
+    avg_gain = sum(gains) / len(gains) if gains else 0.0
+    avg_loss = sum(losses) / len(losses) if losses else 0.0
+    return 50.0 if not (avg_gain or avg_loss) else (100.0 if avg_loss == 0 else 100.0 - (100.0 / (1.0 + avg_gain / avg_loss)))
+
+
+def _rsi_bucket(rsi):
+    rsi = float(rsi or 50)
+    if rsi < 30:
+        return 'oversold'
+    if rsi < 45:
+        return 'low'
+    if rsi <= 55:
+        return 'neutral'
+    if rsi <= 70:
+        return 'high'
+    return 'overbought'
+
+
+def _vwap_bucket(candles):
+    if not candles:
+        return 'near_vwap'
+    try:
+        close = float(candles[-1].get('close') or 0)
+        volumes = [float(c.get('volume') or 0) for c in candles]
+        total_v = sum(volumes)
+        if total_v:
+            vwap = sum(float(c.get('close') or 0) * float(c.get('volume') or 0) for c in candles) / total_v
+        else:
+            vwap = sum(float(c.get('close') or 0) for c in candles) / len(candles)
+        diff = ((close - vwap) / vwap * 100.0) if vwap else 0.0
+    except Exception:
+        return 'near_vwap'
+    if diff > 0.15:
+        return 'above_vwap'
+    if diff < -0.15:
+        return 'below_vwap'
+    return 'near_vwap'
+
+
+def _rr_bucket(rr_ratio):
+    try:
+        rr = float(rr_ratio or 0)
+    except Exception:
+        rr = 0.0
+    if rr >= 1.8:
+        return 'good_rr'
+    if rr >= 1.1:
+        return 'ok_rr'
+    return 'poor_rr'
+
+
+def _fomo_bucket(rsi, direction):
+    try:
+        rsi = float(rsi or 50)
+        fomo = max(0.0, min(1.0, (rsi - 50.0) / 40.0 if direction == 'up' else (50.0 - rsi) / 40.0))
+    except Exception:
+        fomo = 0.0
+    if fomo >= 0.55:
+        return 'high_fomo'
+    if fomo >= 0.22:
+        return 'mid_fomo'
+    return 'low_fomo'
+
+
+def _window_profile(candles, rr_ratio=1.0):
+    trend = _window_trend(candles)
+    rsi = _rsi_from_window(candles)
+    direction = 'up' if trend == 'bullish' else ('down' if trend == 'bearish' else 'skip')
+    return {
+        'trend_bucket': trend,
+        'rsi_bucket': _rsi_bucket(rsi),
+        'vwap_bucket': _vwap_bucket(candles),
+        'rr_bucket': _rr_bucket(rr_ratio),
+        'fomo_bucket': _fomo_bucket(rsi, direction),
+    }
+
+
+def _profile_matches(profile, target, filter_name):
+    keys = {
+        'trend+rsi+vwap+rr+fomo': ['trend_bucket', 'rsi_bucket', 'vwap_bucket', 'rr_bucket', 'fomo_bucket'],
+        'trend+rsi+vwap': ['trend_bucket', 'rsi_bucket', 'vwap_bucket'],
+        'trend+rsi': ['trend_bucket', 'rsi_bucket'],
+        'trend': ['trend_bucket'],
+        'all': [],
+    }[filter_name]
+    return all(profile.get(k) == target.get(k) for k in keys)
+
+
+def build_historical_setup_stats(candles, visible_candles=52, outcome_candles=8, current_trend=None, current_profile=None):
+    candles = list(candles or [])
+    visible_candles = int(visible_candles or 52)
+    outcome_candles = int(outcome_candles or 8)
+    current_trend = (current_trend or '').lower() or None
+    target_profile = dict(current_profile or {})
+    if current_trend and not target_profile.get('trend_bucket'):
+        target_profile['trend_bucket'] = current_trend
+    filters = ['trend+rsi+vwap+rr+fomo', 'trend+rsi+vwap', 'trend+rsi', 'trend', 'all']
+    selected_filter = filters[-1]
+    selected_rows = []
+    for filter_name in filters:
+        rows = []
+        for end in range(visible_candles - 1, len(candles) - outcome_candles - 1):
+            visible = candles[end - visible_candles + 1:end + 1]
+            profile = _window_profile(visible, rr_ratio=1.0)
+            if target_profile and not _profile_matches(profile, target_profile, filter_name):
+                continue
+            try:
+                entry = float(visible[-1].get('close') or 0)
+                final = float(candles[end + outcome_candles].get('close') or entry)
+                change = ((final - entry) / entry * 100.0) if entry else 0.0
+            except Exception:
+                continue
+            rows.append((change, _direction_from_change(change), profile))
+        selected_filter = filter_name
+        selected_rows = rows
+        if len(rows) >= 12 or filter_name == 'all':
+            break
+    counts = {'up': 0, 'down': 0, 'flat': 0}
+    changes = []
+    for change, direction, _profile in selected_rows:
+        counts[direction] += 1
+        changes.append(change)
+    total = len(changes)
+    if total == 0:
+        return {
+            'sample_size': 0, 'up_rate': 0.0, 'down_rate': 0.0, 'flat_rate': 0.0,
+            'avg_change_pct': 0.0, 'stat_direction': 'skip', 'stat_confidence': 0.0,
+            'stat_edge': 0.0, 'basis': 'no historical windows available',
+            'match_profile': target_profile, 'similarity_filters': filters,
+            'selected_filter': selected_filter,
+        }
+    rates = {k: counts[k] / total for k in counts}
+    ranked = sorted(rates.items(), key=lambda kv: kv[1], reverse=True)
+    best_dir, best_rate = ranked[0]
+    second_rate = ranked[1][1] if len(ranked) > 1 else 0.0
+    edge = best_rate - second_rate
+    stat_direction = 'skip' if best_rate < 0.45 or edge < 0.08 else best_dir
+    confidence = 0.35 + min(0.45, max(0.0, edge) * 1.2) + min(0.15, total / 400.0)
+    if stat_direction == 'skip':
+        confidence = min(confidence, 0.52)
+    basis = f'{total} historical windows matched by {selected_filter}'
+    return {
+        'sample_size': total,
+        'up_count': counts['up'],
+        'down_count': counts['down'],
+        'flat_count': counts['flat'],
+        'up_rate': round(rates['up'], 3),
+        'down_rate': round(rates['down'], 3),
+        'flat_rate': round(rates['flat'], 3),
+        'avg_change_pct': round(sum(changes) / total, 4),
+        'stat_direction': stat_direction,
+        'stat_confidence': round(max(0.0, min(0.9, confidence)), 3),
+        'stat_edge': round(edge, 3),
+        'basis': basis,
+        'match_profile': target_profile,
+        'similarity_filters': filters,
+        'selected_filter': selected_filter,
+    }
+
+
 def build_mind_card(snapshot, mode='mixed', exchange='BINANCE', horizon_bars=None):
     candles = list(snapshot.get('candles') or [])
     if not candles:
@@ -151,7 +341,25 @@ def build_historical_mind_card(snapshot, mode='mixed', exchange='BINANCE', visib
     hist_snapshot['candles'] = visible
     hist_snapshot['analysis'] = dict(snapshot.get('analysis') or {}, trend=trend, price=entry, rsi_14=round(rsi, 2))
     hist_snapshot['risk_reward'] = dict(snapshot.get('risk_reward') or {}, entry=entry, stop=stop, target=target, risk_reward_ratio=1.0, valid=True)
+    current_profile = _window_profile(visible, rr_ratio=1.0)
     card = build_mind_card(hist_snapshot, mode=mode, exchange=exchange, horizon_bars=outcome_candles)
+    stats = build_historical_setup_stats(candles, visible_candles=visible_candles, outcome_candles=outcome_candles, current_trend=trend, current_profile=current_profile)
+    card['historical_stats'] = stats
+    card['features']['historical_stats'] = stats
+    card['ai_reason'].append(
+        f"Historical stats: {stats['basis']} → up {round(stats['up_rate']*100)}%, down {round(stats['down_rate']*100)}%, flat {round(stats['flat_rate']*100)}%, avg {stats['avg_change_pct']}%, edge {round(stats.get('stat_edge', 0)*100)}%, statistical view: {stats['stat_direction']}."
+    )
+    p = stats.get('match_profile') or {}
+    card['ai_reason'].append(
+        f"Similarity profile: trend={p.get('trend_bucket')}, RSI={p.get('rsi_bucket')}, VWAP={p.get('vwap_bucket')}, R/R={p.get('rr_bucket')}, FOMO={p.get('fomo_bucket')}."
+    )
+    if stats.get('sample_size', 0) >= 20:
+        stat_dir = stats.get('stat_direction')
+        if stat_dir in ('up', 'down') and stat_dir != card.get('ai_direction'):
+            card['ai_reason'].append('Conflict: chart trend and historical stats disagree, so AI confidence is reduced and Skip becomes safer.')
+            card['ai_confidence'] = round(min(card.get('ai_confidence', 0.5), max(0.35, stats.get('stat_confidence', 0.45) - 0.08)), 3)
+        elif stat_dir in ('up', 'down'):
+            card['ai_confidence'] = round(max(card.get('ai_confidence', 0.5), stats.get('stat_confidence', 0.5)), 3)
     card['training_kind'] = 'historical_known_outcome'
     card['snapshot_ts'] = visible[-1].get('ts')
     card['decision_ts'] = visible[-1].get('ts')

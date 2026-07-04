@@ -458,7 +458,9 @@ def build_trainer_chat_reply(question, card=None, session=None):
     direction_ru = {'up': 'рост / Growth', 'down': 'падение / Fall', 'skip': 'неясно / Skip', 'flat': 'флэт'}
     topic = 'current_card'
     ql = q.lower()
-    if any(x in ql for x in ['invalidation', 'invalid', 'стоп', 'слом', 'отмена', 'уровень отмены']):
+    if any(x in ql for x in ['статист', 'statistics', 'historical', 'истори', 'основан', 'выборк', 'похож']):
+        topic = 'historical_stats'
+    elif any(x in ql for x in ['invalidation', 'invalid', 'стоп', 'слом', 'отмена', 'уровень отмены']):
         topic = 'invalidation'
     elif any(x in ql for x in ['vwap', 'ema', 'средн']):
         topic = 'vwap_ema'
@@ -487,6 +489,13 @@ def build_trainer_chat_reply(question, card=None, session=None):
     ]
     if topic == 'risk_reward':
         parts.append(f'R/R = Risk/Reward: сколько потенциальной прибыли приходится на 1 единицу риска. Здесь R/R: {rr if rr is not None else "n/a"}. Risk примерно {card.get("risk_loss_pct", "n/a")}% против potential {card.get("potential_profit_pct", "n/a")}%.')
+    elif topic == 'historical_stats':
+        hs = card.get('historical_stats') or (card.get('features') or {}).get('historical_stats') or {}
+        profile = hs.get('match_profile') or {}
+        if hs:
+            parts.append(f"Статистическая база: {hs.get('sample_size', 0)} похожих исторических окон, фильтр похожести: {hs.get('selected_filter', 'n/a')}. Итоги: Growth/up {round((hs.get('up_rate') or 0)*100)}%, Fall/down {round((hs.get('down_rate') or 0)*100)}%, flat/skip {round((hs.get('flat_rate') or 0)*100)}%, средний ход {hs.get('avg_change_pct', 'n/a')}%. Статистический взгляд: {hs.get('stat_direction', 'skip')} с confidence ~{round((hs.get('stat_confidence') or 0)*100)}%. Профиль: trend={profile.get('trend_bucket')}, RSI={profile.get('rsi_bucket')}, VWAP={profile.get('vwap_bucket')}, R/R={profile.get('rr_bucket')}, FOMO={profile.get('fomo_bucket')}.")
+        else:
+            parts.append('Для этой карточки ещё нет historical_stats. Значит мнение основано только на текущем trend/SMC/R/R/FOMO, а не на выборке похожих прошлых ситуаций.')
     elif topic == 'vwap_ema':
         parts.append(f'VWAP — средняя цена по объёму: показывает, где “справедливая” intraday-зона. EMA — скользящие средние для темпа тренда. По этой карточке смотри: цена удерживается выше/ниже VWAP, есть ли reclaim/rejection, и совпадает ли это с EMA-направлением. Причины: {reason_text}')
     elif topic == 'glossary':

@@ -5,7 +5,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from trader_assistant.journal import init_journal
-from trader_assistant.mind_cards import build_mind_card, save_mind_card, record_user_choice, mind_card_detail, build_historical_mind_card
+from trader_assistant.mind_cards import build_mind_card, save_mind_card, record_user_choice, mind_card_detail, build_historical_mind_card, build_historical_setup_stats
 
 
 def candle(ts, open_, high, low, close, volume=100):
@@ -116,9 +116,59 @@ def test_historical_outcome_survives_user_choice_for_result_comparison():
             con.close()
 
 
+def test_historical_mind_card_includes_setup_statistics_from_past_windows():
+    base = sample_snapshot()
+    candles = []
+    price = 100.0
+    for i in range(120):
+        drift = 0.35 if (i // 12) % 3 != 1 else -0.25
+        open_ = price
+        close = price + drift
+        candles.append(candle(1000 + i * 60, open_, max(open_, close) + 0.35, min(open_, close) - 0.35, close, 100 + i))
+        price = close
+    base['candles'] = candles
+    stats = build_historical_setup_stats(candles, visible_candles=24, outcome_candles=6, current_trend='bullish')
+    assert stats['sample_size'] > 0
+    assert set(['up_rate', 'down_rate', 'flat_rate', 'avg_change_pct', 'stat_direction', 'stat_confidence']).issubset(stats)
+    assert stats['stat_direction'] in ('up', 'down', 'flat', 'skip')
+    assert 0 <= stats['stat_confidence'] <= 1
+
+    card = build_historical_mind_card(base, mode='mixed', seed=4, visible_candles=24, outcome_candles=6)
+    assert 'historical_stats' in card
+    assert card['features']['historical_stats']['sample_size'] == card['historical_stats']['sample_size']
+    assert any('Historical stats' in x for x in card['ai_reason'])
+
+
+def test_historical_stats_use_rsi_vwap_rr_and_fomo_buckets_for_similarity():
+    base = sample_snapshot()
+    candles = []
+    price = 100.0
+    for i in range(150):
+        drift = 0.45 if i % 10 < 6 else -0.22
+        open_ = price
+        close = price + drift
+        candles.append(candle(1000 + i * 60, open_, max(open_, close) + 0.4, min(open_, close) - 0.4, close, 100 + i))
+        price = close
+    base['candles'] = candles
+    card = build_historical_mind_card(base, mode='mixed', seed=7, visible_candles=32, outcome_candles=8)
+    stats = card['historical_stats']
+    profile = stats['match_profile']
+    assert profile['trend_bucket'] in ('bullish', 'bearish', 'mixed')
+    assert profile['rsi_bucket'] in ('oversold', 'low', 'neutral', 'high', 'overbought')
+    assert profile['vwap_bucket'] in ('below_vwap', 'near_vwap', 'above_vwap')
+    assert profile['rr_bucket'] in ('poor_rr', 'ok_rr', 'good_rr')
+    assert profile['fomo_bucket'] in ('low_fomo', 'mid_fomo', 'high_fomo')
+    assert 'similarity_filters' in stats
+    assert stats['similarity_filters'][0] == 'trend+rsi+vwap+rr+fomo'
+    assert 'stat_edge' in stats
+    assert any('RSI' in x and 'VWAP' in x and 'R/R' in x for x in card['ai_reason'])
+
+
 if __name__ == '__main__':
     test_build_mind_card_has_compact_cockpit_fields()
     test_save_card_and_record_user_choice()
     test_historical_mind_cards_use_different_known_outcome_windows()
     test_historical_outcome_survives_user_choice_for_result_comparison()
+    test_historical_mind_card_includes_setup_statistics_from_past_windows()
+    test_historical_stats_use_rsi_vwap_rr_and_fomo_buckets_for_similarity()
     print('OK mind cards tests passed')
