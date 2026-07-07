@@ -190,16 +190,19 @@ def test_trainer_html_is_sellable_clean_training_page():
     assert 'ИИ помощник' in html
 
 
-def test_trainer_has_ai_calibration_human_edge_panel():
+def test_trainer_has_forecast_realism_calibration_panel_without_strength_framing():
     html = render_trainer_html()
-    assert 'AI Calibration / Human Edge' in html
+    assert 'Forecast Realism / Calibration Memory' in html
     assert 'trainerCalibrationPanel' in html
-    assert 'renderCalibrationPanel' in html
-    assert 'updateCalibrationFromCard' in html
+    assert 'realism drift' in html
+    assert 'bucket reliability' in html
     assert 'bucketBreakdown' in html
-    assert 'User edge' in html
-    assert 'AI weak spots' in html
     assert 'Overconfidence flags' in html
+    assert 'Human Edge' not in html
+    assert 'User edge' not in html
+    assert 'where your read beats AI' not in html
+    assert 'AI weak spots' not in html
+
     assert 'рынок подтвердил другой сценарий' in html or 'market confirmed another scenario' in html
 
 
@@ -385,7 +388,7 @@ if __name__ == '__main__':
     test_pattern_guides_visualize_inverse_cup_and_harmonics_too()
     test_pattern_guides_visualize_wedge_and_range_fakeout_too()
     test_trainer_html_is_sellable_clean_training_page()
-    test_trainer_has_ai_calibration_human_edge_panel()
+    test_trainer_has_forecast_realism_calibration_panel_without_strength_framing()
     test_trainer_assistant_popup_has_quick_questions_and_explain_modes()
     test_trainer_chat_reply_handles_invalidation_pattern_and_vwap_questions()
     test_dashboard_and_trainer_render_visible_historical_stats_block()
