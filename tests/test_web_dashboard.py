@@ -187,7 +187,7 @@ def test_trainer_html_is_sellable_clean_training_page():
     assert 'trainerAssistantPanel' in html
     assert 'askTrainerAssistant' in html
     assert '/api/trainer-chat' in html
-    assert 'ИИ помощник' in html
+    assert 'KI-Helfer' in html
 
 
 def test_trainer_has_forecast_realism_calibration_panel_without_strength_framing():
@@ -206,19 +206,21 @@ def test_trainer_has_forecast_realism_calibration_panel_without_strength_framing
     assert 'рынок подтвердил другой сценарий' in html or 'market confirmed another scenario' in html
 
 
-def test_trainer_assistant_popup_has_quick_questions_and_explain_modes():
+def test_trainer_assistant_popup_has_german_quick_questions_and_explain_modes():
     html = render_trainer_html()
     assert 'assistantQuickActions' in html
     assert 'assistantAskQuick' in html
     assert 'assistantTone' in html
-    assert 'Объясни новичку' in html
-    assert 'Как трейдеру' in html
-    assert 'Почему AI так думает?' in html
-    assert 'Где invalidation?' in html
+    assert 'Einfach erklären' in html
+    assert 'Für Trader erklären' in html
+    assert 'Warum denkt die KI so?' in html
+    assert 'Wo liegt die Invalidation?' in html
     assert 'VWAP/EMA?' in html
-    assert 'Какой паттерн?' in html
-    assert 'Почему Skip?' in html
+    assert 'Welches Pattern?' in html
+    assert 'Warum Skip?' in html
     assert 'assistant-panel' in html and 'right:24px' in html
+    assert 'Объясни новичку' not in html
+    assert 'Почему AI так думает?' not in html
 
 
 def test_trainer_chat_reply_handles_invalidation_pattern_and_vwap_questions():
@@ -229,14 +231,14 @@ def test_trainer_chat_reply_handles_invalidation_pattern_and_vwap_questions():
         'setup_quality': 'mixed', 'market_regime': 'choppy', 'fomo_score': 0.61,
         'ai_reason': ['Range high fakeout risk.', 'Price is under VWAP.', 'Pattern: wedge compression.'],
     }
-    inv = build_trainer_chat_reply('Где invalidation?', card, {'tone': 'pro'})
+    inv = build_trainer_chat_reply('Wo liegt die Invalidation?', card, {'tone': 'pro'})
     assert inv['topic'] == 'invalidation'
     assert 'invalidation' in inv['answer'].lower()
-    assert 'стоп' in inv['answer'].lower() or 'уров' in inv['answer'].lower()
-    pat = build_trainer_chat_reply('Какой паттерн и что смотреть?', card, {'tone': 'beginner'})
+    assert 'niveau' in inv['answer'].lower() or 'level' in inv['answer'].lower()
+    pat = build_trainer_chat_reply('Welches Pattern und worauf achten?', card, {'tone': 'beginner'})
     assert pat['topic'] == 'pattern'
-    assert 'wedge' in pat['answer'].lower() or 'паттерн' in pat['answer'].lower()
-    assert 'нович' in pat['answer'].lower()
+    assert 'wedge' in pat['answer'].lower() or 'pattern' in pat['answer'].lower()
+    assert 'einfach' in pat['answer'].lower()
     vwap = build_trainer_chat_reply('VWAP/EMA?', card, {})
     assert vwap['topic'] == 'vwap_ema'
     assert 'VWAP' in vwap['answer'] and 'EMA' in vwap['answer']
@@ -268,12 +270,12 @@ def test_trainer_chat_explains_historical_stats_basis_when_available():
             'match_profile': {'trend_bucket': 'bullish', 'rsi_bucket': 'high', 'vwap_bucket': 'above_vwap', 'rr_bucket': 'ok_rr', 'fomo_bucket': 'mid_fomo'},
         },
     }
-    reply = build_trainer_chat_reply('На какой статистике основан AI?', card, {})
+    reply = build_trainer_chat_reply('Auf welcher Statistik basiert die KI?', card, {})
     assert reply['topic'] == 'historical_stats'
     assert '38' in reply['answer']
     assert '58%' in reply['answer']
     assert 'trend+rsi+vwap' in reply['answer']
-    assert 'не финансовый совет' in reply['answer'].lower()
+    assert 'keine finanzberatung' in reply['answer'].lower()
 
 
 def test_trainer_chat_reply_uses_card_context_and_safe_tone():
@@ -285,12 +287,13 @@ def test_trainer_chat_reply_uses_card_context_and_safe_tone():
         'ai_reason': ['Trend context: bearish.', 'SMC bias: bearish.', 'VWAP rejection risk.'],
         'known_outcome': {'direction': 'down', 'change_pct': -0.7},
     }
-    reply = build_trainer_chat_reply('что означает R/R и почему ИИ думает падение?', card, {'mode': 'Fakeout Defense', 'stats': {'cards': 3}})
+    reply = build_trainer_chat_reply('was bedeutet R/R und warum denkt die KI fall?', card, {'mode': 'Fakeout Defense', 'stats': {'cards': 3}})
     assert reply['ok'] is True
     assert 'BTCUSDT' in reply['answer']
     assert 'R/R' in reply['answer']
-    assert 'bearish' in reply['answer'] or 'пад' in reply['answer'].lower()
-    assert 'не финансовый совет' in reply['answer'].lower()
+    assert 'bearish' in reply['answer'] or 'fall' in reply['answer'].lower()
+    assert 'keine finanzberatung' in reply['answer'].lower()
+    assert 'не финансовый совет' not in reply['answer'].lower()
     assert reply['topic'] in ('risk_reward', 'current_card', 'glossary')
 
 
@@ -389,7 +392,7 @@ if __name__ == '__main__':
     test_pattern_guides_visualize_wedge_and_range_fakeout_too()
     test_trainer_html_is_sellable_clean_training_page()
     test_trainer_has_forecast_realism_calibration_panel_without_strength_framing()
-    test_trainer_assistant_popup_has_quick_questions_and_explain_modes()
+    test_trainer_assistant_popup_has_german_quick_questions_and_explain_modes()
     test_trainer_chat_reply_handles_invalidation_pattern_and_vwap_questions()
     test_dashboard_and_trainer_render_visible_historical_stats_block()
     test_trainer_chat_explains_historical_stats_basis_when_available()

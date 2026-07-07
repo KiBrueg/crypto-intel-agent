@@ -57,10 +57,10 @@ Demo flow:
    - selected similarity filter
    - buckets: trend, RSI, VWAP, R/R, FOMO, Volume, Range, Fakeout
 7. Show `Forecast Realism / Calibration Memory` on the right.
-8. Open `ИИ помощник` and ask:
-   - `На какой статистике основан AI?`
-   - `Где invalidation?`
-   - `Почему Skip?`
+8. Open `KI-Helfer` and ask in German:
+   - `Auf welcher Statistik basiert die KI?`
+   - `Wo liegt die Invalidation?`
+   - `Warum Skip?`
    - `VWAP/EMA?`
 
 ### 3. Full dashboard

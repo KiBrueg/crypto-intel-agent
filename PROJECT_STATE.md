@@ -36,7 +36,7 @@ Demo instructions: `DEMO_READY.md`.
 - Growth/Fall/Skip workflow.
 - You vs AI vs Market reveal.
 - Visual pattern cheat sheet / FAQ.
-- Right-side `ИИ помощник` popup.
+- Right-side German `KI-Helfer` popup.
 - Historical Similarity Stats visible on cards.
 - Bucket profile matching: trend, RSI, VWAP, R/R, FOMO, Volume, Range, Fakeout.
 - Accumulated experience saved to SQLite and used for realistic confidence calibration.

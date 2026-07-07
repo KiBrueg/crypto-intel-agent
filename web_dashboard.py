@@ -455,67 +455,67 @@ def build_trainer_chat_reply(question, card=None, session=None):
     q = (question or '').strip()
     card = card or {}
     session = session or {}
-    symbol = card.get('symbol') or session.get('symbol') or 'this pair'
-    interval = card.get('interval') or session.get('interval') or 'current timeframe'
+    symbol = card.get('symbol') or session.get('symbol') or 'dieses Paar'
+    interval = card.get('interval') or session.get('interval') or 'aktueller Timeframe'
     ai_dir = card.get('ai_direction') or 'skip'
-    direction_ru = {'up': 'рост / Growth', 'down': 'падение / Fall', 'skip': 'неясно / Skip', 'flat': 'флэт'}
+    direction_de = {'up': 'Anstieg / Growth', 'down': 'Fall / Downside', 'skip': 'unklar / Skip', 'flat': 'Seitwärts / Flat'}
     topic = 'current_card'
     ql = q.lower()
-    if any(x in ql for x in ['статист', 'statistics', 'historical', 'истори', 'основан', 'выборк', 'похож']):
+    if any(x in ql for x in ['statistik', 'statistics', 'historical', 'historisch', 'basiert', 'основан', 'статист', 'выборк', 'похож']):
         topic = 'historical_stats'
-    elif any(x in ql for x in ['invalidation', 'invalid', 'стоп', 'слом', 'отмена', 'уровень отмены']):
+    elif any(x in ql for x in ['invalidation', 'invalid', 'stop', 'level', 'niveau', 'слом', 'отмена', 'уровень отмены']):
         topic = 'invalidation'
-    elif any(x in ql for x in ['vwap', 'ema', 'средн']):
+    elif any(x in ql for x in ['vwap', 'ema', 'durchschnitt', 'средн']):
         topic = 'vwap_ema'
-    elif any(x in ql for x in ['r/r', 'risk', 'reward', 'риск', 'прибыл', 'соотнош']):
+    elif any(x in ql for x in ['r/r', 'risk', 'reward', 'risiko', 'chance', 'риск', 'прибыл', 'соотнош']):
         topic = 'risk_reward'
-    elif any(x in ql for x in ['rsi', 'atr', 'smc', 'fomo', 'bos', 'choch', 'сокращ']):
+    elif any(x in ql for x in ['rsi', 'atr', 'smc', 'fomo', 'bos', 'choch', 'abkürzung', 'сокращ']):
         topic = 'glossary'
-    elif any(x in ql for x in ['паттерн', 'pattern', 'gartley', 'butterfly', 'triangle', 'flag', 'wedge', 'fakeout', 'range', 'prz', 'cup', 'head']):
+    elif any(x in ql for x in ['pattern', 'muster', 'gartley', 'butterfly', 'triangle', 'flag', 'wedge', 'fakeout', 'range', 'prz', 'cup', 'head', 'паттерн']):
         topic = 'pattern'
-    elif any(x in ql for x in ['skip', 'пропуск', 'почему пропустить', 'неясно']):
+    elif any(x in ql for x in ['skip', 'überspringen', 'unklar', 'пропуск', 'неясно']):
         topic = 'skip'
     reasons = card.get('ai_reason') or []
-    reason_text = '; '.join(str(x) for x in reasons[:4]) or 'нет явных причин в карточке — смотри структуру, VWAP/EMA, объём и риск.'
+    reason_text = '; '.join(str(x) for x in reasons[:4]) or 'keine klaren Gründe in der Karte — prüfe Struktur, VWAP/EMA, Volumen und Risiko.'
     rr = card.get('risk_reward_ratio')
     conf = card.get('ai_confidence')
     fomo = card.get('fomo_score')
     quality = card.get('setup_quality') or 'n/a'
     regime = card.get('market_regime') or 'n/a'
     tone = (session.get('tone') or 'pro').lower()
-    beginner = tone in ('beginner', 'новичок', 'simple')
+    beginner = tone in ('beginner', 'novice', 'einfach', 'simple', 'новичок')
     outcome = card.get('known_outcome') or (card.get('features') or {}).get('known_outcome') or {}
     parts = [
-        f'Смотрю текущую карточку {symbol} · {interval}.',
-        ('Объясняю как новичку: простыми словами, без торговых команд.' if beginner else 'Формат: короткий трейдерский разбор контекста.'),
-        f'ИИ-сценарий: {direction_ru.get(ai_dir, ai_dir)}' + (f' с уверенностью ~{round(conf*100)}%.' if isinstance(conf, (int, float)) else '.'),
+        f'Ich schaue auf die aktuelle Karte {symbol} · {interval}.',
+        ('Einfach erklärt: ohne Handelsbefehl, nur als Lern- und Kontextanalyse.' if beginner else 'Kurz als Trader-Kontext: Setup, Risiko, Bestätigung und Invalidation.'),
+        f'KI-Szenario: {direction_de.get(ai_dir, ai_dir)}' + (f' mit ca. {round(conf*100)}% Confidence.' if isinstance(conf, (int, float)) else '.'),
     ]
     if topic == 'risk_reward':
-        parts.append(f'R/R = Risk/Reward: сколько потенциальной прибыли приходится на 1 единицу риска. Здесь R/R: {rr if rr is not None else "n/a"}. Risk примерно {card.get("risk_loss_pct", "n/a")}% против potential {card.get("potential_profit_pct", "n/a")}%.')
+        parts.append(f'R/R = Risk/Reward: wie viel potenzieller Ertrag auf 1 Einheit Risiko kommt. Hier: R/R {rr if rr is not None else "n/a"}. Risiko ca. {card.get("risk_loss_pct", "n/a")}% gegenüber Potenzial {card.get("potential_profit_pct", "n/a")}%.')
     elif topic == 'historical_stats':
         hs = card.get('historical_stats') or (card.get('features') or {}).get('historical_stats') or {}
         profile = hs.get('match_profile') or {}
         if hs:
-            parts.append(f"Статистическая база: {hs.get('sample_size', 0)} похожих исторических окон, фильтр похожести: {hs.get('selected_filter', 'n/a')}. Итоги: Growth/up {round((hs.get('up_rate') or 0)*100)}%, Fall/down {round((hs.get('down_rate') or 0)*100)}%, flat/skip {round((hs.get('flat_rate') or 0)*100)}%, средний ход {hs.get('avg_change_pct', 'n/a')}%. Статистический взгляд: {hs.get('stat_direction', 'skip')} с confidence ~{round((hs.get('stat_confidence') or 0)*100)}%. Профиль: trend={profile.get('trend_bucket')}, RSI={profile.get('rsi_bucket')}, VWAP={profile.get('vwap_bucket')}, R/R={profile.get('rr_bucket')}, FOMO={profile.get('fomo_bucket')}.")
+            parts.append(f"Statistische Basis: {hs.get('sample_size', 0)} ähnliche historische Fenster, Similarity-Filter: {hs.get('selected_filter', 'n/a')}. Ergebnisse: Growth/up {round((hs.get('up_rate') or 0)*100)}%, Fall/down {round((hs.get('down_rate') or 0)*100)}%, Flat/Skip {round((hs.get('flat_rate') or 0)*100)}%, durchschnittliche Bewegung {hs.get('avg_change_pct', 'n/a')}%. Statistischer Blick: {hs.get('stat_direction', 'skip')} mit Confidence ca. {round((hs.get('stat_confidence') or 0)*100)}%. Profil: trend={profile.get('trend_bucket')}, RSI={profile.get('rsi_bucket')}, VWAP={profile.get('vwap_bucket')}, R/R={profile.get('rr_bucket')}, FOMO={profile.get('fomo_bucket')}.")
         else:
-            parts.append('Для этой карточки ещё нет historical_stats. Значит мнение основано только на текущем trend/SMC/R/R/FOMO, а не на выборке похожих прошлых ситуаций.')
+            parts.append('Für diese Karte gibt es noch keine historical_stats. Dann basiert die Einschätzung nur auf aktuellem Trend/SMC/R/R/FOMO und nicht auf einer Stichprobe ähnlicher Vergangenheitssituationen.')
     elif topic == 'vwap_ema':
-        parts.append(f'VWAP — средняя цена по объёму: показывает, где “справедливая” intraday-зона. EMA — скользящие средние для темпа тренда. По этой карточке смотри: цена удерживается выше/ниже VWAP, есть ли reclaim/rejection, и совпадает ли это с EMA-направлением. Причины: {reason_text}')
+        parts.append(f'VWAP ist der volumen-gewichtete Durchschnittspreis und zeigt die faire Intraday-Zone. EMA sind gleitende Durchschnitte für Trendtempo. Prüfe hier: hält der Preis über/unter VWAP, gibt es Reclaim oder Rejection, und passt das zur EMA-Richtung? Gründe: {reason_text}')
     elif topic == 'glossary':
-        parts.append('Коротко по сокращениям: SMC = Smart Money Concepts, VWAP = средняя цена по объёму, EMA = быстрая средняя, RSI = momentum/перекупленность, ATR = волатильность, FOMO = импульсивный вход из страха упустить движение, BOS/CHOCH = смена/слом структуры.')
+        parts.append('Kurz zu den Begriffen: SMC = Smart Money Concepts, VWAP = volumen-gewichteter Durchschnittspreis, EMA = gleitender Durchschnitt, RSI = Momentum/Überkauft-Überverkauft, ATR = Volatilität, FOMO = impulsives Hinterherlaufen, BOS/CHOCH = Strukturbruch/Charakterwechsel.')
     elif topic == 'pattern':
-        parts.append(f'Паттерн — это гипотеза, не сигнал сам по себе. Смотри: форма + уровень подтверждения + объём + реакция у VWAP/EMA + invalidation. Для wedge/range/fakeout важен возврат внутрь диапазона; для Cup/Head/Shoulders — neckline/handle; для гармоник — XABCD и PRZ. В этой карточке подсказки: {reason_text}')
+        parts.append(f'Ein Pattern ist nur eine Hypothese, kein Signal für sich. Achte auf Form, Bestätigungsniveau, Volumen, Reaktion an VWAP/EMA und Invalidation. Bei Wedge/Range/Fakeout zählt die Rückkehr in die Range; bei Cup/Head-and-Shoulders die Neckline bzw. der Handle; bei Harmonics XABCD und PRZ. Hinweise in dieser Karte: {reason_text}')
     elif topic == 'invalidation':
-        parts.append(f'Invalidation — где сценарий ломается. Практически смотри ближайший ключевой уровень/neckline/range high-low/VWAP. Если цена закрепляется против AI-сценария и ретест подтверждает пробой, гипотезу лучше считать сломанной. Для карточки: setup quality={quality}, regime={regime}, R/R={rr if rr is not None else "n/a"}.')
+        parts.append(f'Invalidation heißt: wo das Szenario bricht. Praktisch: nächstes Schlüsselniveau, Neckline, Range High/Low oder VWAP beobachten. Wenn der Preis gegen das KI-Szenario akzeptiert und der Retest hält, ist die Hypothese schwach. Für diese Karte: setup quality={quality}, regime={regime}, R/R={rr if rr is not None else "n/a"}.')
     elif topic == 'skip':
-        parts.append(f'Skip уместен, когда контекст смешанный: confidence низкая, R/R слабый, FOMO высокий, цена в середине диапазона или нет подтверждения объёмом/VWAP. Здесь quality={quality}, regime={regime}, причины: {reason_text}')
+        parts.append(f'Skip ist sinnvoll, wenn der Kontext gemischt ist: niedrige Confidence, schwaches R/R, hoher FOMO-Wert, Preis mitten in der Range oder keine Bestätigung durch Volumen/VWAP. Hier: quality={quality}, regime={regime}, Gründe: {reason_text}')
     else:
-        parts.append(f'Почему так думает ИИ: {reason_text}')
+        parts.append(f'Warum die KI so denkt: {reason_text}')
     if outcome:
-        parts.append(f'В исторической проверке рынок пошёл: {direction_ru.get(outcome.get("direction"), outcome.get("direction"))}, изменение около {outcome.get("change_pct", "n/a")}%.')
+        parts.append(f'In der historischen Prüfung lief der Markt: {direction_de.get(outcome.get("direction"), outcome.get("direction"))}, Bewegung ca. {outcome.get("change_pct", "n/a")}%.')
     if fomo is not None:
-        parts.append(f'FOMO-риск: ~{round(fomo*100)}%. Если высокий — лучше ждать подтверждение, а не догонять свечу.')
-    parts.append('Это обучающее объяснение и не финансовый совет. Используй как разбор контекста, а не команду купить/продать.')
+        parts.append(f'FOMO-Risiko: ca. {round(fomo*100)}%. Wenn es hoch ist, besser Bestätigung abwarten statt der Kerze hinterherzulaufen.')
+    parts.append('Das ist eine Lern- und Kontextanalyse, keine Finanzberatung. Nutze es nicht als Kauf-/Verkaufsbefehl.')
     return {'ok': True, 'topic': topic, 'answer': '\n\n'.join(parts)}
 
 
