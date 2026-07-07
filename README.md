@@ -59,13 +59,26 @@ See `LEARNING_AUTOPILOT.md` for the automatic forecast verification loop.
 
 ## Quick start
 
-Windows browser dashboard (recommended):
+Windows one-click demo (recommended):
 
 ```bat
-launch_dashboard_windows.bat
+Start_Crypto_Intel_Agent.bat
 ```
 
-Then open `http://127.0.0.1:8765`. See `DASHBOARD_GUIDE.md` for dashboard usage and watchlist configuration.
+It opens the entry page:
+
+```text
+http://127.0.0.1:8765/landing
+```
+
+Direct URLs:
+
+```text
+Full dashboard:       http://127.0.0.1:8765
+Market Mind Trainer:  http://127.0.0.1:8765/trainer
+```
+
+For the current showable demo flow, use `DEMO_READY.md`. See `DASHBOARD_GUIDE.md` for dashboard usage and watchlist configuration.
 
 CLI tools:
 
